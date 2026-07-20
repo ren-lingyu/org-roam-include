@@ -1,0 +1,228 @@
+#+TITLE: Org Roam Include
+#+AUTHOR: aRenCoco
+
+* Overview
+Org-roam-include is an experimental Emacs package for composing larger Org
+documents from independent Org-roam nodes.
+
+The package is intended to support an export-only include mechanism based on
+stable Org-roam IDs.  A document can keep its own outline structure while
+pulling each mounted headline's body from another Org-roam node.
+
+Example target syntax:
+
+#+BEGIN_SRC org
+  ** Chapter title
+     :PROPERTIES:
+     :ROAM_INCLUDE: 00000000-0000-0000-0000-000000000000
+     :END:
+#+END_SRC
+
+The local headline remains the exported heading.  The referenced Org-roam node
+provides the body and any internal child headlines.
+
+* Current Status
+This repository is a development workspace.  It is expected to be rebuilt after
+the feature semantics become stable.
+
+The current implementation only provides package metadata, dependency
+declarations, user options, a global mode skeleton, and variable diagnostics.
+The actual node expansion logic is intentionally still pending.
+
+* Goals
+** Export-only behavior
+The first stable target is export support.  The package should transform Org's
+export temporary buffer before Org parses it, then let Org export continue as
+usual.
+
+The source Org files must not be modified.
+
+** Stable user-facing references
+The user-facing reference should be an Org-roam node ID, not a file path,
+headline title, line number, or whether the node is stored as a file node or a
+headline node.
+
+** Local outline controls document structure
+The composition document's local headline should define:
+
+- exported title
+- headline level
+- order
+- outline structure
+
+The included node should provide only the mounted content body.
+
+** Depend on stable extension points
+The preferred integration point is:
+
+#+BEGIN_SRC emacs-lisp
+  org-export-before-processing-functions
+#+END_SRC
+
+This hook runs in Org's export temporary buffer before parsing.  It is a better
+fit for this package than advising Org's internal include expander.
+
+* Non-goals
+The first implementation should not provide:
+
+- editing-time preview
+- inline overlay display
+- link navigation enhancements
+- =#+INCLUDE: "id:UUID"= syntax
+- arbitrary Org include parameter forwarding
+- a full reimplementation of Org's native include system
+
+These may be revisited after the export-only path is reliable.
+
+* Design Decisions
+** Do not compile to line-based =#+INCLUDE=
+Earlier design notes considered compiling each mounted node into a native Org
+include form such as:
+
+#+BEGIN_SRC org
+  #+INCLUDE: "/absolute/path/to/node.org" :lines "10-48" :minlevel 3
+#+END_SRC
+
+This is no longer the preferred first implementation.  The package should
+instead copy the source node's subtree body into the export temporary buffer.
+
+The direct subtree approach avoids line number dependence and keeps recursion,
+cycle detection, and error reporting in terms of Org-roam node IDs.
+
+** Remove the source node shell
+For a headline node, expansion should remove:
+
+- the source headline line
+- the source node's immediate property drawer
+
+Then it should insert the remaining body below the local mounting headline.
+
+For example, this source node:
+
+#+BEGIN_SRC org
+  * Source title
+    :PROPERTIES:
+    :ID: source-id
+    :END:
+
+  Intro.
+
+  ** Child section
+  Text.
+#+END_SRC
+
+mounted here:
+
+#+BEGIN_SRC org
+  ** Local title
+     :PROPERTIES:
+     :ROAM_INCLUDE: source-id
+     :END:
+#+END_SRC
+
+should export as if the temporary Org buffer contained:
+
+#+BEGIN_SRC org
+  ** Local title
+
+  Intro.
+
+  *** Child section
+  Text.
+#+END_SRC
+
+** File nodes need a conservative body definition
+For a file node, the body should start after file-level metadata.  The exact
+rules still need implementation testing, but the first candidate is to skip
+leading Org keywords, blank lines, and a leading file-level property drawer.
+
+** Relative file links
+Copying node text into a different export buffer can change the meaning of
+relative =file:= links.  The current package option
+=org-roam-include-rewrite-relative-file-links= records the intended behavior:
+relative file links copied from included nodes should be resolved against the
+source node file when expansion is implemented.
+
+** Recursion and cycles
+Recursive inclusion should be handled by the package rather than by Org's
+native include recursion detection.
+
+Planned behavior:
+
+- keep an active Org-roam ID stack
+- signal a clear error when an ID appears twice in the active stack
+- enforce =org-roam-include-max-depth=
+
+* Implementation Plan
+** Phase 1: Package skeleton
+- Add standard package header.
+- Declare dependencies on =cl-lib=, =org=, =ox=, =org-roam=, and =subr-x=.
+- Add =defgroup= and initial =defcustom= variables.
+- Add =org-roam-include--variable-type-alist= and variable diagnostics in the
+  style of =org-roam-organize--check-variables=.
+- Add global =org-roam-include-mode=.
+- Install a placeholder export hook through
+  =org-export-before-processing-functions=.
+
+** Phase 2: Node resolution
+- Resolve =ROAM_INCLUDE= property values with =org-roam-node-from-id=.
+- Read =org-roam-node-file=, =org-roam-node-point=, and
+  =org-roam-node-level=.
+- Report missing IDs with enough context to identify the mounting headline.
+
+** Phase 3: Content extraction
+- Extract headline node bodies by removing the source headline shell.
+- Extract file node bodies by skipping file-level metadata.
+- Preserve ordinary Org content inside the node body.
+
+** Phase 4: Buffer expansion
+- Scan the export temporary buffer for mounting headlines.
+- Replace each mounted headline body with the included node body.
+- Adjust child headline levels relative to the mounting headline.
+- Remove export-only =ROAM_INCLUDE= metadata from the temporary result.
+
+** Phase 5: Recursion and diagnostics
+- Expand recursively until no =ROAM_INCLUDE= properties remain.
+- Detect ID cycles.
+- Enforce maximum depth.
+- Improve error messages for missing files, missing nodes, and malformed
+  mounted headlines.
+
+** Phase 6: Link handling
+- Rewrite relative =file:= links copied from source nodes so export output is
+  close to native Org include behavior.
+
+* Requirements
+- Emacs 31.0 or later
+- Org mode
+- Org-roam 2.0.0 or later
+
+* Configuration
+During development the package can be loaded directly:
+
+#+BEGIN_SRC emacs-lisp
+  (load-file "~/Projects/org-roam-include/org-roam-include.el")
+  (org-roam-include-mode 1)
+#+END_SRC
+
+After the package stabilizes, it should be usable with a normal =load-path= or
+package manager setup.
+
+Use the diagnostic command to inspect the current configuration:
+
+#+BEGIN_SRC emacs-lisp
+  (org-roam-include-check-variables)
+#+END_SRC
+
+* Development Notes
+This repository intentionally prioritizes development convenience over clean
+release history.  Intermediate commits do not need to be independently
+complete or release-ready.
+
+The stable boundary to preserve during development is behavioral: source Org
+files should not be changed by export expansion.  All document composition
+should happen in Org export temporary buffers.
+
+* License
+This project is intended to use the GNU General Public License v3.0 or later.
+Add a LICENSE file before publishing or distributing the package.
