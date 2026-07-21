@@ -70,6 +70,7 @@
 ;; ==============================
 
 (require 'org)
+(require 'org-element)
 (require 'ox)
 (require 'org-roam)
 (require 'rx)
@@ -167,6 +168,12 @@ This variable is reserved for a later recursive implementation.")
 (defun org-roam-include--keyword-prefix ()
   "Return the Org keyword prefix used by Org-roam Include."
   (format "#+%s:" org-roam-include--keyword-name))
+
+(defun org-roam-include--keyword-name-p (key)
+  "Return non-nil when KEY names an Org-roam include keyword."
+  (and (stringp key)
+       (string= (upcase key)
+                (upcase org-roam-include--keyword-name))))
 
 (defun org-roam-include--check-variables (alist)
   "Check Org-roam Include variables in ALIST.
@@ -346,6 +353,26 @@ When BOUND is non-nil, do not search past it."
   "Return the 1-based line number at POS."
   (line-number-at-pos pos t))
 
+(defun org-roam-include--keyword-positions ()
+  "Return Org-roam include keyword positions from bottom to top."
+  (let ((ast (org-element-parse-buffer))
+        positions)
+    (org-element-map ast 'keyword
+      (lambda (keyword)
+        (when (org-roam-include--keyword-name-p
+               (org-element-property :key keyword))
+          (push (org-element-property :begin keyword) positions))))
+    (sort positions #'>)))
+
+(defun org-roam-include--outline-first-headline-begin ()
+  "Return the beginning position of the first Org headline."
+  (org-element-map (org-element-parse-buffer)
+      'headline
+    (lambda (headline)
+      (org-element-property :begin headline))
+    nil
+    t))
+
 (defun org-roam-include--node-location-data (node)
   "Return NODE location data from the Org-roam database.
 
@@ -453,9 +480,11 @@ content in its saved source file."
           file
           id))
        (goto-char (point-min))
-       (unless (re-search-forward org-heading-regexp nil t)
-         (user-error "Org-roam file node has no headline content: %s" id))
-       (org-roam-include--include-line-number-at-pos (line-beginning-position))))))
+       (let ((headline_begin
+              (org-roam-include--outline-first-headline-begin)))
+         (unless headline_begin
+           (user-error "Org-roam file node has no headline content: %s" id))
+         (org-roam-include--include-line-number-at-pos headline_begin))))))
 
 (defun org-roam-include--include-quote-location (location)
   "Quote LOCATION for use in an Org INCLUDE keyword."
@@ -483,11 +512,33 @@ whitespace when non-empty."
   (cons (match-string-no-properties 1 value)
         (match-string-no-properties 2 value)))
 
+(defun org-roam-include--keyword-parse-line ()
+  "Parse the Org-roam include keyword line at point.
+
+Return a plist with keys :begin, :end, :indentation, :key, and :value."
+  (let* ((line_begin (line-beginning-position))
+         (line_end (line-end-position))
+         (line (buffer-substring-no-properties line_begin line_end)))
+    (unless (string-match org-roam-include--keyword-line-regexp line)
+      (user-error "Point is not at a %s keyword"
+                  (org-roam-include--keyword-prefix)))
+    (unless (org-roam-include--keyword-name-p
+             (match-string-no-properties 2 line))
+      (user-error "Point is not at a %s keyword"
+                  (org-roam-include--keyword-prefix)))
+    (list :begin line_begin
+          :end line_end
+          :indentation (match-string-no-properties 1 line)
+          :key (match-string-no-properties 2 line)
+          :value (match-string-no-properties 3 line))))
+
 (defun org-roam-include--keyword-compile-at-point ()
   "Compile the Org-roam include keyword at point to a native INCLUDE keyword."
-  (let* ((line_begin (match-beginning 0))
-         (line_end (match-end 0))
-         (value (match-string-no-properties 3))
+  (let* ((line_data (org-roam-include--keyword-parse-line))
+         (line_begin (plist-get line_data :begin))
+         (line_end (plist-get line_data :end))
+         (indentation (plist-get line_data :indentation))
+         (value (plist-get line_data :value))
          (parsed (org-roam-include--keyword-parse-value value))
          (id (car parsed))
          (raw_tail (cdr parsed))
@@ -498,7 +549,7 @@ whitespace when non-empty."
            raw_tail)))
     (delete-region line_begin line_end)
     (goto-char line_begin)
-    (insert native_include)))
+    (insert indentation native_include)))
 
 (defun org-roam-include--mount-id-at-point ()
   "Return the mounted Org-roam node ID at point."
@@ -555,14 +606,10 @@ whitespace when non-empty."
 (defun org-roam-include--keyword-compile-all ()
   "Compile all Org-roam include keywords in the current buffer."
   (save-excursion
-    (goto-char (point-min))
-    (let ((case-fold-search t))
-      (while (re-search-forward org-roam-include--keyword-line-regexp nil t)
-        (when (and (string= (upcase (match-string-no-properties 2))
-                            (upcase org-roam-include--keyword-name))
-                   (not (save-match-data
-                          (org-roam-include--org-in-commented-heading-p))))
-          (org-roam-include--keyword-compile-at-point))))))
+    (dolist (pos (org-roam-include--keyword-positions))
+      (goto-char pos)
+      (unless (org-roam-include--org-in-commented-heading-p)
+        (org-roam-include--keyword-compile-at-point)))))
 
 (defun org-roam-include--before-processing (_backend)
   "Expand Org-roam include properties before Org export parsing.
