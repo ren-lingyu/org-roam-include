@@ -59,9 +59,12 @@
 ;; not interpreted by this package.  Properties on the mounting headline are
 ;; preserved except for the controlling include property itself.
 ;;
-;; This package is currently experimental.  The first stable target is an
-;; export-only preprocessor based on `org-export-before-processing-functions',
-;; not an editing preview mode and not an advice around Org's include expander.
+;; The package normalizes Org-roam include forms immediately before each
+;; invocation of Org's native INCLUDE expander.  A lightweight export hook marks
+;; export working buffers, while a thin around advice ensures that
+;; normalization is repeated in recursive INCLUDE buffers.  File reading,
+;; INCLUDE argument handling, recursive expansion, and cycle detection remain
+;; the responsibility of Org's native exporter.
 
 ;;; Code:
 
@@ -86,24 +89,12 @@
   "Include Org-roam node contents during Org export."
   :group 'org-roam)
 
-(defcustom org-roam-include-max-depth
-  64
-  "Maximum recursive Org-roam include expansion depth.
-
-This option is reserved for a later recursive implementation.  The
-current expansion logic does not recursively compile included files."
-  :type 'integer
-  :safe (lambda (value)
-          (and (integerp value)
-               (> value 0)))
-  :group 'org-roam-include)
-
 ;; ==============================
 ;; 常量定义
 ;; ==============================
 
 (defconst org-roam-include--variable-type-alist
-  '((org-roam-include-max-depth . integer))
+  nil
   "Variables and expected types checked by `org-roam-include--check-variables'.")
 
 (defconst org-roam-include--capability-alist
@@ -185,10 +176,11 @@ The list maps symbols to capability types checked by
 ;; 内部变量
 ;; ==============================
 
-(defvar org-roam-include--expansion-stack nil
-  "Internal stack of Org-roam node IDs currently being expanded.
+(defvar-local org-roam-include--export-buffer-p nil
+  "Non-nil when the current buffer is an Org export working copy.")
 
-This variable is reserved for a later recursive implementation.")
+(defvar org-roam-include--within-native-expansion nil
+  "Non-nil while recursively expanding native Org INCLUDE keywords.")
 
 ;; ==============================
 ;; 内部函数
@@ -723,12 +715,31 @@ Return a plist with keys :begin, :end, :indentation, :key, and :value."
       (unless (org-roam-include--org-in-commented-heading-p)
         (org-roam-include--keyword-compile-at-point)))))
 
-(defun org-roam-include--before-processing (_backend)
-  "Expand Org-roam include properties before Org export parsing.
+(defun org-roam-include--mark-export-buffer (_backend)
+  "Mark the current buffer as an Org export working copy."
+  (setq org-roam-include--export-buffer-p t))
 
-This function is installed by `org-roam-include-mode'.  It is
-expected to run in Org's export temporary buffer."
-  (org-roam-include-expand-buffer))
+(defun org-roam-include--around-expand-include-keyword
+    (original_function &rest arguments)
+  "Normalize Org-roam includes before native INCLUDE expansion.
+
+ORIGINAL_FUNCTION is `org-export-expand-include-keyword'.  ARGUMENTS
+are passed to ORIGINAL_FUNCTION unchanged."
+  (if (or org-roam-include--export-buffer-p
+          org-roam-include--within-native-expansion)
+      (let ((org-roam-include--within-native-expansion t)
+            (org-execute-file-search-functions
+             (if (memq
+                  #'org-roam-include--execute-line-search
+                  org-execute-file-search-functions)
+                 org-execute-file-search-functions
+               (cons
+                #'org-roam-include--execute-line-search
+                org-execute-file-search-functions))))
+        (save-excursion
+          (org-roam-include-expand-buffer))
+        (apply original_function arguments))
+    (apply original_function arguments)))
 
 ;; ==============================
 ;; 可调用结构函数
@@ -753,13 +764,12 @@ validation."
                  check_result)))))
 
 (defun org-roam-include-expand-buffer ()
-  "Expand all Org-roam include forms in the current Org buffer.
+  "Normalize Org-roam include forms in the current Org buffer.
 
-This function is intended to run in Org export temporary buffers.  It
-first compiles `org-roam-include--property-name' mounts to base Org-roam include
-keywords, then compiles base Org-roam include keywords to native Org INCLUDE
-keywords.  The current implementation does not recursively compile included
-files."
+Compile file-node property mounts to base Org-roam include keywords, then
+compile base Org-roam include keywords to native Org INCLUDE keywords.  This
+function only normalizes the current buffer.  Recursive file expansion is
+performed by Org's native include expander."
   (org-roam-include--mount-compile-all)
   (org-roam-include--keyword-compile-all))
 
@@ -770,11 +780,11 @@ files."
 ;; definition
 ;;;###autoload
 (define-minor-mode org-roam-include-mode
-  "Toggle expansion of Org-roam include properties during Org export.
+  "Toggle recursive Org-roam include normalization during Org export.
 
 The mode is global.  When enabled, Org export temporary buffers are
-preprocessed before parsing so that headlines with
-`org-roam-include--property-name' can be expanded into ordinary Org text."
+marked before parsing, and Org-roam include forms are normalized before each
+invocation of Org's native INCLUDE expander."
   :global t
   :group 'org-roam-include
   :lighter " ORI"
@@ -783,22 +793,29 @@ preprocessed before parsing so that headlines with
         (if (car check_result)
             (progn
               (add-hook 'org-export-before-processing-functions
-                        #'org-roam-include--before-processing)
-              (add-hook 'org-execute-file-search-functions
-                        #'org-roam-include--execute-line-search))
+                        #'org-roam-include--mark-export-buffer)
+              (unless (advice-member-p
+                       #'org-roam-include--around-expand-include-keyword
+                       'org-export-expand-include-keyword)
+                (advice-add
+                 'org-export-expand-include-keyword
+                 :around
+                 #'org-roam-include--around-expand-include-keyword)))
           (setq org-roam-include-mode nil)
           (remove-hook 'org-export-before-processing-functions
-                       #'org-roam-include--before-processing)
-          (remove-hook 'org-execute-file-search-functions
-                       #'org-roam-include--execute-line-search)
+                       #'org-roam-include--mark-export-buffer)
+          (advice-remove
+           'org-export-expand-include-keyword
+           #'org-roam-include--around-expand-include-keyword)
           (org-roam-include--warning
            (concat
             "Org Roam Include Mode setup failed.\n"
             (cdr check_result)))))
     (remove-hook 'org-export-before-processing-functions
-                 #'org-roam-include--before-processing)
-    (remove-hook 'org-execute-file-search-functions
-                 #'org-roam-include--execute-line-search)))
+                 #'org-roam-include--mark-export-buffer)
+    (advice-remove
+     'org-export-expand-include-keyword
+     #'org-roam-include--around-expand-include-keyword)))
 
 (provide 'org-roam-include)
 
