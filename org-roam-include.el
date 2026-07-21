@@ -54,9 +54,9 @@
 ;; fails and the Org-roam database must be synchronized.
 ;;
 ;; File nodes in the base syntax are compiled to whole-file INCLUDE locations.
-;; Headline nodes are compiled to FILE::LINE locations derived from the
-;; database point and the saved source file.  Native INCLUDE arguments are not
-;; interpreted by this package.  Properties on the mounting headline are
+;; Headline nodes are compiled to private line-search locations derived from
+;; the database point and the saved source file.  Native INCLUDE arguments are
+;; not interpreted by this package.  Properties on the mounting headline are
 ;; preserved except for the controlling include property itself.
 ;;
 ;; This package is currently experimental.  The first stable target is an
@@ -109,6 +109,7 @@ current expansion logic does not recursively compile included files."
 (defconst org-roam-include--capability-alist
   '((org-export-before-processing-functions . variable)
     (org-export-expand-include-keyword . function)
+    (org-execute-file-search-functions . variable)
     (advice-add . function)
     (advice-remove . function)
     (advice-member-p . function)
@@ -168,6 +169,17 @@ The list maps symbols to capability types checked by
 (defconst org-roam-include--unquotable-location-regexp
   (rx (any "\"\n\r"))
   "Regexp matching characters unsupported in generated INCLUDE locations.")
+
+(defconst org-roam-include--line-search-prefix
+  "org-roam-include-line:"
+  "Prefix used for internal headline line search locations.")
+
+(defconst org-roam-include--line-search-regexp
+  (rx string-start
+      "org-roam-include-line:"
+      (group (+ digit))
+      string-end)
+  "Regexp matching an internal Org-roam Include line location.")
 
 ;; ==============================
 ;; 内部变量
@@ -455,6 +467,23 @@ When BOUND is non-nil, do not search past it."
     nil
     t))
 
+(defun org-roam-include--execute-line-search (search)
+  "Handle internal Org-roam Include line SEARCH.
+
+Return non-nil when SEARCH uses the private Org-roam Include line syntax.
+Leave point at the corresponding headline."
+  (when (string-match org-roam-include--line-search-regexp search)
+    (let ((line (string-to-number
+                 (match-string-no-properties 1 search))))
+      (when (< line 1)
+        (user-error "Invalid Org-roam include line: %d" line))
+      (goto-char (point-min))
+      (unless (= (forward-line (1- line)) 0)
+        (user-error "Org-roam include line is outside source file: %d" line))
+      (unless (org-at-heading-p)
+        (user-error "Org-roam include line is not at a headline: %d" line))
+      t)))
+
 (defun org-roam-include--node-location-data (node)
   "Return NODE location data from the Org-roam database.
 
@@ -524,8 +553,9 @@ The returned plist has keys :file, :point, :level, and :id."
                    (list :type 'headline
                          :line line
                          :location
-                         (format "%s::%d"
+                         (format "%s::%s%d"
                                  expanded_file
+                                 org-roam-include--line-search-prefix
                                  line)))))))))
 
 (defun org-roam-include--node-resolve (id)
@@ -751,15 +781,24 @@ preprocessed before parsing so that headlines with
   (if org-roam-include-mode
       (let ((check_result (org-roam-include--setup-check)))
         (if (car check_result)
-            (add-hook 'org-export-before-processing-functions
-                      #'org-roam-include--before-processing)
+            (progn
+              (add-hook 'org-export-before-processing-functions
+                        #'org-roam-include--before-processing)
+              (add-hook 'org-execute-file-search-functions
+                        #'org-roam-include--execute-line-search))
           (setq org-roam-include-mode nil)
+          (remove-hook 'org-export-before-processing-functions
+                       #'org-roam-include--before-processing)
+          (remove-hook 'org-execute-file-search-functions
+                       #'org-roam-include--execute-line-search)
           (org-roam-include--warning
            (concat
             "Org Roam Include Mode setup failed.\n"
             (cdr check_result)))))
     (remove-hook 'org-export-before-processing-functions
-                 #'org-roam-include--before-processing)))
+                 #'org-roam-include--before-processing)
+    (remove-hook 'org-execute-file-search-functions
+                 #'org-roam-include--execute-line-search)))
 
 (provide 'org-roam-include)
 
