@@ -361,7 +361,9 @@ When BOUND is non-nil, do not search past it."
       (lambda (keyword)
         (when (org-roam-include--keyword-name-p
                (org-element-property :key keyword))
-          (push (org-element-property :begin keyword) positions))))
+          (push (or (org-element-property :post-affiliated keyword)
+                    (org-element-property :begin keyword))
+                positions))))
     (sort positions #'>)))
 
 (defun org-roam-include--outline-first-headline-begin ()
