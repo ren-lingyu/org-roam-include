@@ -27,9 +27,14 @@
 
 ;;; Commentary:
 
-;; Org-roam-include expands Org headline properties that refer to Org-roam
-;; node IDs into native Org INCLUDE keywords while exporting Org buffers.  A
-;; headline such as:
+;; Org-roam-include expands Org-roam node IDs into native Org INCLUDE
+;; locations while exporting Org buffers.  The base public syntax is:
+;;
+;;   #+ROAM_INCLUDE: node-id :only-contents t
+;;
+;; which is compiled to a native include location and preserves the native
+;; INCLUDE arguments after the node ID.  A higher-level file-node mount syntax
+;; is also supported.  A headline such as:
 ;;
 ;;   ** Chapter
 ;;      :PROPERTIES:
@@ -37,24 +42,22 @@
 ;;      :END:
 ;;
 ;; is intended to keep the local headline as the exported document structure
-;; while taking the body from the referenced Org-roam node.  Mounted headlines
-;; are replacement mount points: any local body and child subtrees under the
-;; mounting headline are removed from the export copy before the generated
-;; INCLUDE keyword is inserted.  The implementation should run only in Org
-;; export temporary buffers and should not modify source files.
+;; while mounting the outline forest of the referenced file node below it.
+;; Mounted headlines are replacement mount points: any local body and child
+;; subtrees under the mounting headline are removed from the export copy before
+;; the generated base include keyword is inserted.  The implementation should
+;; run only in Org export temporary buffers and should not modify source files.
 ;;
 ;; Node locations are taken directly from the Org-roam database.  The package
 ;; does not rescan source files by ID to repair stale database entries.  When a
 ;; recorded position is inconsistent with the saved source file, expansion
 ;; fails and the Org-roam database must be synchronized.
 ;;
-;; Headline nodes are compiled to native Org INCLUDE keywords with a file search
-;; location and `:only-contents t'.  Consequently, the source headline, planning
-;; information, and root property drawer are excluded according to Org's native
-;; INCLUDE behavior.  File-level nodes have no direct native `:only-contents'
-;; equivalent.  Their mounted body starts after the leading file-level metadata
-;; recognized by this package.  Properties on the mounting headline are
-;; preserved except for the controlling ROAM_INCLUDE property itself.
+;; File nodes in the base syntax are compiled to whole-file INCLUDE locations.
+;; Headline nodes are compiled to FILE::LINE locations derived from the
+;; database point and the saved source file.  Native INCLUDE arguments are not
+;; interpreted by this package.  Properties on the mounting headline are
+;; preserved except for the controlling include property itself.
 ;;
 ;; This package is currently experimental.  The first stable target is an
 ;; export-only preprocessor based on `org-export-before-processing-functions',
@@ -82,12 +85,6 @@
   "Include Org-roam node contents during Org export."
   :group 'org-roam)
 
-(defcustom org-roam-include-property
-  "ROAM_INCLUDE"
-  "Org property name used to store the source Org-roam node ID."
-  :type 'string
-  :group 'org-roam-include)
-
 (defcustom org-roam-include-max-depth
   64
   "Maximum recursive Org-roam include expansion depth.
@@ -105,9 +102,16 @@ current expansion logic does not recursively compile included files."
 ;; ==============================
 
 (defconst org-roam-include--variable-type-alist
-  '((org-roam-include-property . string)
-    (org-roam-include-max-depth . integer))
+  '((org-roam-include-max-depth . integer))
   "Variables and expected types checked by `org-roam-include--check-variables'.")
+
+(defconst org-roam-include--property-name
+  "ROAM_INCLUDE"
+  "Org property name used for headline mount declarations.")
+
+(defconst org-roam-include--keyword-name
+  "ROAM_INCLUDE"
+  "Org keyword name used for base include wrappers.")
 
 (defconst org-roam-include--property-drawer-begin-regexp
   (rx line-start
@@ -125,35 +129,23 @@ current expansion logic does not recursively compile included files."
       line-end)
   "Regexp matching the end line of an Org property drawer.")
 
-(defconst org-roam-include--blank-line-regexp
-  (rx line-start
-      (* (any " \t"))
-      line-end)
-  "Regexp matching a blank line.")
-
 (defconst org-roam-include--keyword-line-regexp
   (rx line-start
-      (* (any " \t"))
+      (group (* (any " \t")))
       "#+"
       (group (+ (not (any ":\n"))))
       ":"
-      (* nonl)
+      (group (* nonl))
       line-end)
-  "Regexp matching a leading Org keyword line.")
+  "Regexp matching an Org keyword line.")
 
-(defconst org-roam-include--file-metadata-keywords
-  '("AUTHOR"
-    "DATE"
-    "DESCRIPTION"
-    "FILETAGS"
-    "LANGUAGE"
-    "OPTIONS"
-    "PROPERTY"
-    "ROAM_ALIASES"
-    "ROAM_REFS"
-    "STARTUP"
-    "TITLE")
-  "Leading Org keywords treated as file-node metadata.")
+(defconst org-roam-include--node-id-and-tail-regexp
+  (rx string-start
+      (* (any " \t"))
+      (group (+ (not (any " \t\n\r"))))
+      (group (* anything))
+      string-end)
+  "Regexp matching an Org-roam include node ID and raw INCLUDE tail.")
 
 (defconst org-roam-include--unquotable-location-regexp
   (rx (any "\"\n\r"))
@@ -172,6 +164,10 @@ This variable is reserved for a later recursive implementation.")
 ;; 内部函数
 ;; ==============================
 
+(defun org-roam-include--keyword-prefix ()
+  "Return the Org keyword prefix used by Org-roam Include."
+  (format "#+%s:" org-roam-include--keyword-name))
+
 (defun org-roam-include--check-variables (alist)
   "Check Org-roam Include variables in ALIST.
 
@@ -180,105 +176,105 @@ function follows the diagnostic style of `org-roam-organize--check-variables'
 and returns a cons cell whose car is the boolean result and whose cdr is a
 human-readable report."
   (if (listp alist)
-      (let* ((result-bool t)
-             (result-message
+      (let* ((result_bool t)
+             (result_message
               (concat "All org-roam-include variables are as follow.\n"))
-             (add-to-result-message
-              (lambda (var-name var-value var-expected-type)
-                (setq result-message
+             (add_to_result_message_
+              (lambda (var_name var_value var_expected_type)
+                (setq result_message
                       (concat
-                       result-message
-                       (format "- %s? %s \n" var-name var-value)
+                       result_message
+                       (format "- %s? %s \n" var_name var_value)
                        (cond
-                        ((or (and (eq var-value nil)
-                                  (eq var-expected-type 'directory))
-                             (and (eq var-value nil)
-                                  (eq var-expected-type 'file)))
+                        ((or (and (eq var_value nil)
+                                  (eq var_expected_type 'directory))
+                             (and (eq var_value nil)
+                                  (eq var_expected_type 'file)))
                          (format "  %s? %s (should be t)\n"
-                                 var-expected-type nil))
-                        ((eq var-expected-type 'directory)
+                                 var_expected_type nil))
+                        ((eq var_expected_type 'directory)
                          (format "  %s? %s (should be t)\n"
-                                 var-expected-type
-                                 (and (stringp var-value)
-                                      (file-directory-p var-value))))
-                        ((eq var-expected-type 'file)
+                                 var_expected_type
+                                 (and (stringp var_value)
+                                      (file-directory-p var_value))))
+                        ((eq var_expected_type 'file)
                          (format "  %s? %s (should be t)\n"
-                                 var-expected-type
-                                 (and (stringp var-value)
-                                      (file-exists-p var-value))))
-                        ((eq var-expected-type 'string)
+                                 var_expected_type
+                                 (and (stringp var_value)
+                                      (file-exists-p var_value))))
+                        ((eq var_expected_type 'string)
                          (format "  %s? %s (should be t)\n"
-                                 var-expected-type
-                                 (and (stringp var-value)
-                                      (not (string-empty-p var-value)))))
-                        ((eq var-expected-type 'list)
+                                 var_expected_type
+                                 (and (stringp var_value)
+                                      (not (string-empty-p var_value)))))
+                        ((eq var_expected_type 'list)
                          (format "  %s? %s (should be t)\n"
-                                 var-expected-type
-                                 (listp var-value)))
-                        ((eq var-expected-type 'boolean)
+                                 var_expected_type
+                                 (listp var_value)))
+                        ((eq var_expected_type 'boolean)
                          (format "  %s? %s (should be t)\n"
-                                 var-expected-type
-                                 (booleanp var-value)))
-                        ((eq var-expected-type 'integer)
+                                 var_expected_type
+                                 (booleanp var_value)))
+                        ((eq var_expected_type 'integer)
                          (format "  %s? %s (should be t)\n"
-                                 var-expected-type
-                                 (and (integerp var-value)
-                                      (> var-value 0))))
+                                 var_expected_type
+                                 (and (integerp var_value)
+                                      (> var_value 0))))
                         (t
                          (format "  the type of variable is not acceptable\n"))))))))
         (dolist (pair alist)
-          (let* ((var-name (car pair))
-                 (var-value (when (boundp var-name) (symbol-value var-name)))
-                 (var-expected-type (cdr pair))
-                 (add-to-result-message-short
+          (let* ((var_name (car pair))
+                 (var_value (when (boundp var_name) (symbol-value var_name)))
+                 (var_expected_type (cdr pair))
+                 (add_to_result_message_short_
                   (lambda ()
-                    (funcall add-to-result-message
-                             var-name
-                             var-value
-                             var-expected-type))))
+                    (funcall add_to_result_message_
+                             var_name
+                             var_value
+                             var_expected_type))))
             (cond
-             ((and (eq var-value nil)
-                   (not (eq var-expected-type 'boolean)))
-              (funcall add-to-result-message-short)
-              (setq result-bool nil))
-             ((eq var-expected-type 'list)
-              (funcall add-to-result-message-short)
-              (unless (listp var-value)
-                (setq result-bool nil)))
-             ((eq var-expected-type 'string)
-              (funcall add-to-result-message-short)
-              (unless (and (stringp var-value)
-                           (not (string-empty-p var-value)))
-                (setq result-bool nil)))
-             ((eq var-expected-type 'directory)
-              (funcall add-to-result-message-short)
+             ((and (eq var_value nil)
+                   (not (eq var_expected_type 'boolean)))
+              (funcall add_to_result_message_short_)
+              (setq result_bool nil))
+             ((eq var_expected_type 'list)
+              (funcall add_to_result_message_short_)
+              (unless (listp var_value)
+                (setq result_bool nil)))
+             ((eq var_expected_type 'string)
+              (funcall add_to_result_message_short_)
+              (unless (and (stringp var_value)
+                           (not (string-empty-p var_value)))
+                (setq result_bool nil)))
+             ((eq var_expected_type 'directory)
+              (funcall add_to_result_message_short_)
               (unless (and
-                       (stringp var-value)
-                       (file-directory-p var-value))
-                (setq result-bool nil)))
-             ((eq var-expected-type 'file)
-              (funcall add-to-result-message-short)
+                       (stringp var_value)
+                       (file-directory-p var_value))
+                (setq result_bool nil)))
+             ((eq var_expected_type 'file)
+              (funcall add_to_result_message_short_)
               (unless (and
-                       (stringp var-value)
-                       (file-exists-p var-value))
-                (setq result-bool nil)))
-             ((eq var-expected-type 'boolean)
-              (funcall add-to-result-message-short)
-              (unless (booleanp var-value)
-                (setq result-bool nil)))
-             ((eq var-expected-type 'integer)
-              (funcall add-to-result-message-short)
-              (unless (and (integerp var-value)
-                           (> var-value 0))
-                (setq result-bool nil)))
+                       (stringp var_value)
+                       (file-exists-p var_value))
+                (setq result_bool nil)))
+             ((eq var_expected_type 'boolean)
+              (funcall add_to_result_message_short_)
+              (unless (booleanp var_value)
+                (setq result_bool nil)))
+             ((eq var_expected_type 'integer)
+              (funcall add_to_result_message_short_)
+              (unless (and (integerp var_value)
+                           (> var_value 0))
+                (setq result_bool nil)))
              (t
-              (funcall add-to-result-message-short)
-              (setq result-bool nil)))))
-        (cons result-bool result-message))
+              (funcall add_to_result_message_short_)
+              (setq result_bool nil)))))
+        (cons result_bool result_message))
     (cons nil "Inner Constant org-roam-include--variable-type-alist is NOT defined properly. ")))
 
-(defun org-roam-include--collect-mounts ()
-  "Return positions of headlines with `org-roam-include-property'.
+(defun org-roam-include--mount-collect ()
+  "Return positions of headlines with `org-roam-include--property-name'.
 
 Positions are returned from bottom to top so buffer mutations do not
 invalidate earlier positions.  The scan respects the current buffer
@@ -287,38 +283,38 @@ replacement mount."
   (let (mounts)
     (org-map-entries
      (lambda ()
-       (when (and (not (org-in-commented-heading-p))
-                  (org-entry-get nil org-roam-include-property)
-                  (not (org-roam-include--mounted-ancestor-p)))
+       (when (and (not (org-roam-include--org-in-commented-heading-p))
+                  (org-entry-get nil org-roam-include--property-name)
+                  (not (org-roam-include--mount-ancestor-p)))
          (push (point) mounts)))
      nil
      nil)
     (sort mounts #'>)))
 
-(defun org-roam-include--mounted-ancestor-p ()
+(defun org-roam-include--mount-ancestor-p ()
   "Return non-nil when the current headline has a mounted ancestor."
   (save-excursion
     (catch 'mounted
       (while (org-up-heading-safe)
-        (when (org-entry-get nil org-roam-include-property)
+        (when (org-entry-get nil org-roam-include--property-name)
           (throw 'mounted t)))
       nil)))
 
-(defun org-roam-include--subtree-end ()
+(defun org-roam-include--org-in-commented-heading-p ()
+  "Return non-nil when point is in a COMMENT subtree."
+  (and (not (condition-case nil
+                (org-before-first-heading-p)
+              (error nil)))
+       (org-in-commented-heading-p)))
+
+(defun org-roam-include--org-subtree-end ()
   "Return the end position of the current subtree."
   (save-excursion
     (org-back-to-heading t)
     (org-end-of-subtree t t)
     (point)))
 
-(defun org-roam-include--next-heading-position ()
-  "Return the position of the next heading, or `point-max'."
-  (save-excursion
-    (if (outline-next-heading)
-        (point)
-      (point-max))))
-
-(defun org-roam-include--skip-property-drawer (&optional bound)
+(defun org-roam-include--org-skip-property-drawer (&optional bound)
   "Move point past the property drawer at point.
 
 When BOUND is non-nil, do not search past it."
@@ -330,76 +326,48 @@ When BOUND is non-nil, do not search past it."
       (user-error "Property drawer has no END line"))
     (forward-line 1)))
 
-(defun org-roam-include--skip-node-metadata ()
+(defun org-roam-include--org-skip-node-metadata ()
   "Move point past immediate planning lines and property drawer."
   (if (fboundp 'org-end-of-meta-data)
       (org-end-of-meta-data 'standard)
     (while (and (boundp 'org-planning-line-re)
                 (looking-at-p org-planning-line-re))
       (forward-line 1))
-    (org-roam-include--skip-property-drawer)))
+    (org-roam-include--org-skip-property-drawer)))
 
-(defun org-roam-include--headline-body-begin ()
+(defun org-roam-include--org-headline-body-begin ()
   "Return the body beginning position of the current headline."
   (save-excursion
     (org-back-to-heading t)
-    (org-roam-include--skip-node-metadata)
+    (org-roam-include--org-skip-node-metadata)
     (point)))
 
-(defun org-roam-include--skip-file-metadata ()
-  "Move point past leading file-level metadata."
-  (let ((changed t))
-    (while changed
-      (setq changed nil)
-      (while (looking-at-p org-roam-include--blank-line-regexp)
-        (setq changed t)
-        (forward-line 1))
-      (when (looking-at-p org-roam-include--property-drawer-begin-regexp)
-        (setq changed t)
-        (org-roam-include--skip-property-drawer
-         (org-roam-include--next-heading-position)))
-      (while (looking-at-p org-roam-include--blank-line-regexp)
-        (setq changed t)
-        (forward-line 1))
-      (while (and (looking-at org-roam-include--keyword-line-regexp)
-                  (member (upcase (match-string-no-properties 1))
-                          org-roam-include--file-metadata-keywords))
-        (setq changed t)
-        (forward-line 1)))))
-
-(defun org-roam-include--line-number-at-pos (pos)
+(defun org-roam-include--include-line-number-at-pos (pos)
   "Return the 1-based line number at POS."
   (line-number-at-pos pos t))
-
-(defun org-roam-include--file-node-body-start-line ()
-  "Return the file node body start line in the current buffer."
-  (goto-char (point-min))
-  (org-roam-include--skip-file-metadata)
-  (when (< (point) (point-max))
-    (org-roam-include--line-number-at-pos (point))))
 
 (defun org-roam-include--node-location-data (node)
   "Return NODE location data from the Org-roam database.
 
 The returned plist has keys :file, :point, :level, and :id."
   (let ((file (org-roam-node-file node))
-        (node-point (org-roam-node-point node))
-        (node-level (org-roam-node-level node))
+        (node_point (org-roam-node-point node))
+        (node_level (org-roam-node-level node))
         (id (org-roam-node-id node)))
     (unless (and file (file-readable-p file))
       (user-error "Org-roam include source file is not readable: %s" file))
-    (unless (and (integerp node-point)
-                 (integerp node-level)
-                 (>= node-level 0))
+    (unless (and (integerp node_point)
+                 (integerp node_level)
+                 (>= node_level 0))
       (user-error
        "Org-roam database contains an invalid location for node ID %s"
        id))
     (list :file file
-          :point node-point
-          :level node-level
+          :point node_point
+          :level node_level
           :id id)))
 
-(defun org-roam-include--source-buffer-for-location (location thunk)
+(defun org-roam-include--source-with-buffer (location thunk)
   "Run THUNK in a temporary Org buffer for LOCATION."
   (let ((file (plist-get location :file)))
     (with-temp-buffer
@@ -408,13 +376,75 @@ The returned plist has keys :file, :point, :level, and :id."
         (delay-mode-hooks (org-mode)))
       (funcall thunk))))
 
-(defun org-roam-include--headline-node-location (node)
-  "Return a native Org INCLUDE location for headline NODE."
+(defun org-roam-include--node-location (node)
+  "Return NODE as resolver data with a native Org INCLUDE location."
+  (let* ((raw_location (org-roam-include--node-location-data node))
+         (raw_file (plist-get raw_location :file))
+         (expanded_file (expand-file-name raw_file))
+         (location (plist-put raw_location :file expanded_file))
+         (point (plist-get location :point))
+         (level (plist-get location :level))
+         (id (plist-get location :id)))
+    (if (zerop level)
+        (org-roam-include--source-with-buffer
+         location
+         (lambda ()
+           (unless (<= (point-min) point (point-max))
+             (user-error
+              "Org-roam database position is outside file %s for node ID %s; run org-roam-db-sync"
+              expanded_file
+              id))
+           (append location
+                   (list :type 'file
+                         :location expanded_file))))
+      (org-roam-include--source-with-buffer
+       location
+       (lambda ()
+         (unless (<= (point-min) point (point-max))
+           (user-error
+            "Org-roam database position is outside file %s for node ID %s; run org-roam-db-sync"
+            expanded_file
+            id))
+         (goto-char point)
+         (unless (org-at-heading-p)
+           (user-error
+            "Org-roam database position is not at a headline for node ID %s; run org-roam-db-sync"
+            id))
+         (let ((line (org-roam-include--include-line-number-at-pos point)))
+           (append location
+                   (list :type 'headline
+                         :line line
+                         :location
+                         (format "%s::%d"
+                                 expanded_file
+                                 line)))))))))
+
+(defun org-roam-include--node-resolve (id)
+  "Resolve ID to Org-roam node data and a native INCLUDE location."
+  (when (string-empty-p id)
+    (user-error "%s node ID is empty"
+                org-roam-include--keyword-name))
+  (let ((node (org-roam-node-from-id id)))
+    (unless node
+      (user-error "Cannot find Org-roam node for ID: %s" id))
+    (org-roam-include--node-location node)))
+
+(defun org-roam-include--outline-start-line (node)
+  "Return the first headline line for file NODE.
+
+Signal a user error when NODE is not a file node or has no headline
+content in its saved source file."
   (let* ((location (org-roam-include--node-location-data node))
          (file (plist-get location :file))
          (point (plist-get location :point))
+         (level (plist-get location :level))
          (id (plist-get location :id)))
-    (org-roam-include--source-buffer-for-location
+    (unless (zerop level)
+      (user-error
+       "Headline-node mounts are not defined yet for ID %s; use %s explicitly"
+       id
+       (org-roam-include--keyword-prefix)))
+    (org-roam-include--source-with-buffer
      location
      (lambda ()
        (unless (<= (point-min) point (point-max))
@@ -422,35 +452,12 @@ The returned plist has keys :file, :point, :level, and :id."
           "Org-roam database position is outside file %s for node ID %s; run org-roam-db-sync"
           file
           id))
-       (goto-char point)
-       (unless (org-at-heading-p)
-         (user-error
-          "Org-roam database position is not at a headline for node ID %s; run org-roam-db-sync"
-          id))
-       (format "%s::%d"
-               (expand-file-name file)
-               (org-roam-include--line-number-at-pos point))))))
+       (goto-char (point-min))
+       (unless (re-search-forward org-heading-regexp nil t)
+         (user-error "Org-roam file node has no headline content: %s" id))
+       (org-roam-include--include-line-number-at-pos (line-beginning-position))))))
 
-(defun org-roam-include--file-node-body-start (node)
-  "Return file node body start data for NODE."
-  (let* ((location (org-roam-include--node-location-data node))
-         (file (plist-get location :file))
-         (point (plist-get location :point))
-         (id (plist-get location :id)))
-    (org-roam-include--source-buffer-for-location
-     location
-     (lambda ()
-       (unless (<= (point-min) point (point-max))
-         (user-error
-          "Org-roam database position is outside file %s for node ID %s; run org-roam-db-sync"
-          file
-          id))
-       (let ((start-line (org-roam-include--file-node-body-start-line)))
-         (when start-line
-           (list :file (expand-file-name file)
-                 :start start-line)))))))
-
-(defun org-roam-include--quote-location (location)
+(defun org-roam-include--include-quote-location (location)
   "Quote LOCATION for use in an Org INCLUDE keyword."
   (when (string-match-p
          org-roam-include--unquotable-location-regexp
@@ -459,67 +466,102 @@ The returned plist has keys :file, :point, :level, and :id."
                 location))
   (format "\"%s\"" location))
 
-(defun org-roam-include--format-headline-include (node)
-  "Return an Org INCLUDE keyword for headline NODE."
-  (format "#+INCLUDE: %s :only-contents t"
-          (org-roam-include--quote-location
-           (org-roam-include--headline-node-location node))))
+(defun org-roam-include--include-format-native (location raw_tail)
+  "Format native INCLUDE using LOCATION and RAW_TAIL.
 
-(defun org-roam-include--format-file-include (node)
-  "Return an Org INCLUDE keyword for file NODE."
-  (let ((body-start (org-roam-include--file-node-body-start node)))
-    (when body-start
-      (format "#+INCLUDE: %s :lines \"%d-\""
-              (org-roam-include--quote-location
-               (plist-get body-start :file))
-              (plist-get body-start :start)))))
+RAW_TAIL is inserted unchanged and should include its own leading
+whitespace when non-empty."
+  (format "#+INCLUDE: %s%s"
+          (org-roam-include--include-quote-location location)
+          raw_tail))
 
-(defun org-roam-include--include-keyword (node)
-  "Return an Org INCLUDE keyword for NODE, or nil for an empty body."
-  (if (zerop (org-roam-node-level node))
-      (org-roam-include--format-file-include node)
-    (org-roam-include--format-headline-include node)))
+(defun org-roam-include--keyword-parse-value (value)
+  "Parse Org-roam include keyword VALUE as a cons cell (ID . RAW-TAIL)."
+  (unless (string-match org-roam-include--node-id-and-tail-regexp value)
+    (user-error "%s node ID is empty"
+                org-roam-include--keyword-name))
+  (cons (match-string-no-properties 1 value)
+        (match-string-no-properties 2 value)))
+
+(defun org-roam-include--keyword-compile-at-point ()
+  "Compile the Org-roam include keyword at point to a native INCLUDE keyword."
+  (let* ((line_begin (match-beginning 0))
+         (line_end (match-end 0))
+         (value (match-string-no-properties 3))
+         (parsed (org-roam-include--keyword-parse-value value))
+         (id (car parsed))
+         (raw_tail (cdr parsed))
+         (resolved (org-roam-include--node-resolve id))
+         (native_include
+          (org-roam-include--include-format-native
+           (plist-get resolved :location)
+           raw_tail)))
+    (delete-region line_begin line_end)
+    (goto-char line_begin)
+    (insert native_include)))
 
 (defun org-roam-include--mount-id-at-point ()
   "Return the mounted Org-roam node ID at point."
   (string-trim
-   (or (org-entry-get (point) org-roam-include-property)
+   (or (org-entry-get (point) org-roam-include--property-name)
        "")))
 
-(defun org-roam-include--replace-mount-body (content)
+(defun org-roam-include--keyword-format-base (id raw_tail)
+  "Format a base Org-roam include keyword from ID and RAW_TAIL."
+  (format "%s %s%s"
+          (org-roam-include--keyword-prefix)
+          id
+          raw_tail))
+
+(defun org-roam-include--mount-replace-body (content)
   "Replace the current headline body with CONTENT."
-  (let ((body-begin (org-roam-include--headline-body-begin))
-        (body-end (org-roam-include--subtree-end)))
-    (delete-region body-begin body-end)
-    (goto-char body-begin)
+  (let ((body_begin (org-roam-include--org-headline-body-begin))
+        (body_end (org-roam-include--org-subtree-end)))
+    (delete-region body_begin body_end)
+    (goto-char body_begin)
     (unless (string-empty-p content)
       (insert "\n" content "\n"))))
 
-(defun org-roam-include--compile-one-at-point ()
-  "Compile the mounted headline at point to a native Org INCLUDE keyword."
+(defun org-roam-include--mount-compile-at-point ()
+  "Compile the mounted headline at point to a base Org-roam include keyword."
   (org-back-to-heading t)
-  (let* ((id (org-roam-include--mount-id-at-point))
-         (mount-level (org-outline-level)))
+  (let ((id (org-roam-include--mount-id-at-point)))
     (when (string-empty-p id)
-      (user-error "ROAM_INCLUDE property is empty at headline: %s"
+      (user-error "%s property is empty at headline: %s"
+                  org-roam-include--property-name
                   (org-get-heading t t t t)))
     (let* ((node (org-roam-node-from-id id))
            (_ (unless node
                 (user-error
-                 "Cannot find Org-roam node for ROAM_INCLUDE ID: %s"
+                 "Cannot find Org-roam node for ID: %s"
                  id)))
-           (include-keyword (or (org-roam-include--include-keyword node)
-                                "")))
-      (org-entry-delete (point) org-roam-include-property)
-      (org-roam-include--replace-mount-body include-keyword))))
+           (outline_start_line
+            (org-roam-include--outline-start-line node))
+           (roam_include
+            (org-roam-include--keyword-format-base
+             id
+             (format " :lines \"%d-\"" outline_start_line))))
+      (org-entry-delete (point) org-roam-include--property-name)
+      (org-roam-include--mount-replace-body roam_include))))
 
-(defun org-roam-include--compile-buffer ()
+(defun org-roam-include--mount-compile-all ()
   "Compile all Org-roam include mounts in current buffer."
-  (let ((mounts (org-roam-include--collect-mounts)))
+  (let ((mounts (org-roam-include--mount-collect)))
     (dolist (pos mounts)
       (goto-char pos)
       (when (org-at-heading-p)
-        (org-roam-include--compile-one-at-point)))))
+        (org-roam-include--mount-compile-at-point)))))
+
+(defun org-roam-include--keyword-compile-all ()
+  "Compile all Org-roam include keywords in the current buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t))
+      (while (re-search-forward org-roam-include--keyword-line-regexp nil t)
+        (when (and (string= (upcase (match-string-no-properties 2))
+                            (upcase org-roam-include--keyword-name))
+                   (not (org-roam-include--org-in-commented-heading-p)))
+          (org-roam-include--keyword-compile-at-point))))))
 
 (defun org-roam-include--before-processing (_backend)
   "Expand Org-roam include properties before Org export parsing.
@@ -536,22 +578,24 @@ expected to run in Org's export temporary buffer."
 (defun org-roam-include-check-variables ()
   "Check variables required by Org-roam Include."
   (interactive)
-  (let ((check-result
+  (let ((check_result
          (org-roam-include--check-variables
           org-roam-include--variable-type-alist)))
     (message "%s"
-             (if (consp check-result)
-                 (cdr check-result)
-               check-result))))
+             (if (consp check_result)
+                 (cdr check_result)
+               check_result))))
 
 (defun org-roam-include-expand-buffer ()
-  "Expand all Org-roam include properties in the current Org buffer.
+  "Expand all Org-roam include forms in the current Org buffer.
 
 This function is intended to run in Org export temporary buffers.  It
-compiles `org-roam-include-property' mounts to native Org INCLUDE
-keywords.  The current implementation does not recursively compile
-included files."
-  (org-roam-include--compile-buffer))
+first compiles `org-roam-include--property-name' mounts to base Org-roam include
+keywords, then compiles base Org-roam include keywords to native Org INCLUDE
+keywords.  The current implementation does not recursively compile included
+files."
+  (org-roam-include--mount-compile-all)
+  (org-roam-include--keyword-compile-all))
 
 ;; ==============================
 ;; Minor-Mode
@@ -564,15 +608,15 @@ included files."
 
 The mode is global.  When enabled, Org export temporary buffers are
 preprocessed before parsing so that headlines with
-`org-roam-include-property' can be expanded into ordinary Org text."
+`org-roam-include--property-name' can be expanded into ordinary Org text."
   :global t
   :group 'org-roam-include
   :lighter " ORI"
   (if org-roam-include-mode
-      (let ((check-result
+      (let ((check_result
              (org-roam-include--check-variables
               org-roam-include--variable-type-alist)))
-        (if (car check-result)
+        (if (car check_result)
             (add-hook 'org-export-before-processing-functions
                       #'org-roam-include--before-processing)
           (setq org-roam-include-mode nil)
@@ -581,7 +625,7 @@ preprocessed before parsing so that headlines with
                     "[WARNING] There are variables not defined properly. "
                     "Org Roam Include Mode setup failed.\n"
                     "Variable validation result: failed\n"
-                    (cdr check-result)))))
+                    (cdr check_result)))))
     (remove-hook 'org-export-before-processing-functions
                  #'org-roam-include--before-processing)))
 
