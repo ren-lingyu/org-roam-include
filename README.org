@@ -1,0 +1,409 @@
+#+TITLE: Org Roam Include
+#+AUTHOR: aRenCoco
+
+* Overview
+Org-roam-include is an Emacs package that resolves Org-roam node IDs to native
+Org =#+INCLUDE= locations during Org export.  Its purpose is deliberately small:
+
+#+BEGIN_QUOTE
+Resolve stable Org-roam node IDs to native Org =#+INCLUDE= locations, then let
+Org's exporter handle the include semantics.
+#+END_QUOTE
+
+The package is not a transclusion system.  It does not provide editing-time
+preview, live overlays, synchronized editing, property migration, or custom
+link repair.  It is an export-only adapter that runs in Org's export temporary
+buffer.
+
+The intended layering is:
+
+#+BEGIN_SRC text
+  Org-roam node ID
+      -> org-roam.db
+      -> native Org INCLUDE location
+      -> #+INCLUDE
+      -> Org exporter
+#+END_SRC
+
+Org-roam owns node identity and node positions.  Org-roam-include only converts
+those positions into native include locations.  Org owns the later behavior:
+file reading, line ranges, headline level adjustment, footnotes, relative file
+links, and recursive expansion of ordinary =#+INCLUDE= keywords.
+
+* Current Status
+This is an early export-only implementation.  The current version supports the
+base =#+ROAM_INCLUDE= wrapper, file-node outline projection, and file-node
+headline mounts.
+
+The package deliberately keeps the first version narrow.  Headline-node property
+mounts, recursive =#+ROAM_INCLUDE= expansion, editing previews, and metadata
+migration are not implemented.
+
+* Core Syntax
+The base public syntax is:
+
+#+BEGIN_SRC org
+  #+ROAM_INCLUDE: NODE-ID [native INCLUDE arguments]
+#+END_SRC
+
+Examples:
+
+#+BEGIN_SRC org
+  #+ROAM_INCLUDE: 550e8400-e29b-41d4-a716-446655440000
+
+  #+ROAM_INCLUDE: 550e8400-e29b-41d4-a716-446655440000 :only-contents t
+
+  #+ROAM_INCLUDE: 550e8400-e29b-41d4-a716-446655440000 :lines "2-10"
+
+  #+ROAM_INCLUDE: 550e8400-e29b-41d4-a716-446655440000 src emacs-lisp :lines "1-20"
+#+END_SRC
+
+Only the first non-whitespace token after =#+ROAM_INCLUDE:= is interpreted by
+this package.  That token is treated as an Org-roam node ID.  The remaining text
+on the line is preserved as raw native =#+INCLUDE= arguments.
+
+The base rule is:
+
+#+BEGIN_SRC text
+  ROAM_INCLUDE(ID, RAW-TAIL)
+  =
+  INCLUDE(resolve(ID), RAW-TAIL)
+#+END_SRC
+
+The base layer does not parse or validate native include arguments such as
+=:lines=, =:only-contents=, =:minlevel=, =src=, =example=, or =export=.  Their
+meaning belongs to Org.
+
+* Node Resolution
+Org-roam's database is the authority for node locations.  Node resolution uses:
+
+#+BEGIN_SRC emacs-lisp
+  (org-roam-node-from-id id)
+  (org-roam-node-file node)
+  (org-roam-node-level node)
+  (org-roam-node-point node)
+#+END_SRC
+
+The package does not:
+
+- rescan source files for =:ID:=;
+- search by headline title;
+- search by =CUSTOM_ID=;
+- recover stale database positions with fallback heuristics;
+- run =org-roam-db-sync= during export.
+
+If the database location is inconsistent with the saved source file, export
+fails clearly and asks the user to synchronize the Org-roam database.
+
+Source files are interpreted from disk, matching Org's native =#+INCLUDE=
+behavior.  Unsaved changes in already visited source buffers are not part of
+the first-version semantics.
+
+** File Nodes
+For a file node:
+
+#+BEGIN_SRC org
+  #+ROAM_INCLUDE: FILE-NODE-ID
+#+END_SRC
+
+compiles to:
+
+#+BEGIN_SRC org
+  #+INCLUDE: "/absolute/path/to/file.org"
+#+END_SRC
+
+The base wrapper includes the file location as a native Org include target.  It
+does not automatically remove file property drawers, =#+TITLE=, =#+FILETAGS=,
+=#+PROPERTY=, first-section text, or any other file-level content.
+
+Users who want specific file projections can express them through native
+include arguments or through a higher-level projection provided by this package.
+
+** Headline Nodes
+For a headline node, the database point is converted to a line number in the
+saved source file:
+
+#+BEGIN_SRC org
+  #+ROAM_INCLUDE: HEADLINE-NODE-ID
+#+END_SRC
+
+compiles to:
+
+#+BEGIN_SRC org
+  #+INCLUDE: "/absolute/path/to/file.org::137"
+#+END_SRC
+
+The generated location uses =FILE::LINE= rather than =FILE::*Heading=,
+=FILE::#CUSTOM_ID=, or an ID-matching regexp.  Titles can be duplicated or
+renamed, =CUSTOM_ID= is optional, and a regexp matching =:ID:= would usually
+land inside a property drawer rather than on the headline element.
+
+Additional projection choices remain native Org arguments:
+
+#+BEGIN_SRC org
+  #+ROAM_INCLUDE: HEADLINE-NODE-ID :only-contents t
+#+END_SRC
+
+The package does not add =:only-contents= automatically at the base layer.
+
+* File Outline Projection
+File outline projection is a higher-level convenience for file nodes.  It is
+defined as:
+
+#+BEGIN_QUOTE
+Include the region from the beginning of the first headline through the end of
+the last headline.
+#+END_QUOTE
+
+The current implementation compiles this projection by finding the first
+headline line =N= and generating:
+
+#+BEGIN_SRC org
+  #+ROAM_INCLUDE: FILE-NODE-ID :lines "N-"
+#+END_SRC
+
+The base wrapper then compiles it to:
+
+#+BEGIN_SRC org
+  #+INCLUDE: "/absolute/path/to/file.org" :lines "N-"
+#+END_SRC
+
+This does not include file-level property drawers, file-level keywords, or
+first-section elements before the first headline.  If a file node has no
+headline, outline projection fails with a clear error instead of silently
+including the whole file or producing an empty include.
+
+The documented projection is "first headline through last headline".  The
+initial implementation uses Org's normal outline shape, where the final
+headline's subtree reaches the end of the file.
+
+* Headline Mounts
+The package provides a high-level property syntax for composition documents:
+
+#+BEGIN_SRC org
+  ** Local title
+     :PROPERTIES:
+     :CUSTOM_ID: local-target
+     :ROAM_INCLUDE: FILE-NODE-ID
+     :END:
+
+  Local body.
+
+  *** Local child
+#+END_SRC
+
+This headline is a replacement mount point:
+
+- the local headline itself is preserved;
+- local properties other than =ROAM_INCLUDE= are preserved;
+- the controlling =ROAM_INCLUDE= property is removed in the export copy;
+- local body and child subtrees are removed in the export copy;
+- the referenced file node's outline projection is inserted into the local
+  headline section.
+
+The current version defines this property mount only for file nodes.  If a
+property mount points to a headline node, expansion fails with a message that
+headline-node mounts are not defined yet and that explicit =#+ROAM_INCLUDE= is
+available instead.
+
+Headline node projections have more than one reasonable meaning.  Users can
+choose native Org semantics explicitly:
+
+#+BEGIN_SRC org
+  #+ROAM_INCLUDE: HEADLINE-NODE-ID
+
+  #+ROAM_INCLUDE: HEADLINE-NODE-ID :only-contents t
+#+END_SRC
+
+The current version does not automatically choose between those meanings for
+property mounts.
+
+* Export Pipeline
+The package installs an export preprocessor through:
+
+#+BEGIN_SRC emacs-lisp
+  org-export-before-processing-functions
+#+END_SRC
+
+The hook runs two stages:
+
+#+BEGIN_SRC emacs-lisp
+  (defun org-roam-include--before-processing (_backend)
+    (org-roam-include-expand-buffer))
+#+END_SRC
+
+** Stage 1: Mount Compiler
+The mount compiler transforms high-level headline property mounts into base
+=#+ROAM_INCLUDE= keywords.
+
+It:
+
+- scan only the current accessible buffer region;
+- respect subtree export and narrowing;
+- skip COMMENT subtrees;
+- ignore nested mounts inside another replacement mount;
+- process from bottom to top so mutations do not invalidate positions;
+- delete the local mount body and child subtrees;
+- delete only the controlling =ROAM_INCLUDE= property;
+- preserve other local properties;
+- accept only file-node mounts in the first version;
+- compile file-node mounts to file outline projection.
+
+It does not directly generate native =#+INCLUDE=.
+
+** Stage 2: Keyword Compiler
+The keyword compiler transforms base wrappers:
+
+#+BEGIN_SRC org
+  #+ROAM_INCLUDE: NODE-ID RAW-TAIL
+#+END_SRC
+
+into native Org includes:
+
+#+BEGIN_SRC org
+  #+INCLUDE: "RESOLVED-LOCATION"RAW-TAIL
+#+END_SRC
+
+It:
+
+- scan only the current accessible buffer region;
+- respect subtree export and narrowing;
+- skip COMMENT subtrees;
+- parse only the first non-whitespace token as the node ID;
+- preserve the raw tail after the node ID;
+- resolve file nodes to =FILE=;
+- resolve headline nodes to =FILE::LINE=;
+- leave all native include parameters to Org.
+
+Running mount compilation before keyword compilation is part of the semantics.
+It means wrappers inside a replacement mount's old local body are deleted
+before the keyword compiler sees them.
+
+* Location Quoting
+Generated native include locations are written into Org quoted strings:
+
+#+BEGIN_SRC org
+  #+INCLUDE: "/absolute/path.org::137"
+#+END_SRC
+
+The current version rejects locations containing:
+
+- double quote;
+- newline;
+- carriage return.
+
+It does not escape backslashes as if the location were an Elisp string
+literal.  The generated text is Org syntax, not Lisp source.
+
+Use =expand-file-name= rather than =file-truename= so symbolic-link based
+logical paths are not unnecessarily rewritten.
+
+* Recursion
+After =#+ROAM_INCLUDE= is compiled to native =#+INCLUDE=, ordinary nested
+=#+INCLUDE= keywords in source files are handled by Org's native include
+expander.
+
+The first version does not expand =#+ROAM_INCLUDE= keywords that appear inside
+included source files.
+
+Supported in the first version:
+
+#+BEGIN_SRC text
+  ROAM_INCLUDE -> native INCLUDE -> native INCLUDE
+#+END_SRC
+
+Not yet supported:
+
+#+BEGIN_SRC text
+  ROAM_INCLUDE -> ROAM_INCLUDE
+#+END_SRC
+
+Future recursive support can use =org-roam-include--expansion-stack= and
+=org-roam-include-max-depth=, but the cycle key needs to include the projection
+or raw include tail, not just the node ID.
+
+* Error Handling
+The current version reports these cases clearly:
+
+- empty =ROAM_INCLUDE= node ID;
+- missing Org-roam node;
+- unreadable source file;
+- invalid database location;
+- database point outside the saved source file;
+- headline node database point not at a headline;
+- file outline projection requested for a file node without headline content;
+- property mount pointing to a headline node.
+
+The package does not silently fall back to title search, =CUSTOM_ID= search,
+ID rescanning, whole-file include, or automatic database synchronization.
+
+* Non-goals
+The first version does not implement:
+
+- editing-time preview;
+- overlays;
+- live transclusion;
+- bidirectional editing;
+- automatic synchronization;
+- property inheritance;
+- =CUSTOM_ID= migration;
+- =ID= conflict handling;
+- attachment context repair;
+- file metadata whitelists;
+- a custom include parser;
+- custom Org file-search hooks;
+- nested =ROAM_INCLUDE=;
+- automatic =org-roam-db-sync=;
+- fixes for native Org =#+INCLUDE= behavior.
+
+The rule is: do not handle problems that native =#+INCLUDE= itself does not
+handle, except for stable Org-roam ID resolution and explicitly defined node
+projections.
+
+* Implementation Notes
+The implementation is organized as a small export preprocessor:
+
+- =org-roam-include-mode= installs
+  =org-roam-include--before-processing= in
+  =org-export-before-processing-functions=.
+- =org-roam-include-expand-buffer= first compiles headline mounts, then compiles
+  base =#+ROAM_INCLUDE= keywords.
+- =org-roam-include--mount-compile-all= uses Org headline and property APIs to
+  process replacement mounts from bottom to top.
+- =org-roam-include--keyword-compile-all= uses Org element parsing to find real
+  keyword elements and avoids changing literal text inside blocks.
+- Node resolution uses =org-roam-node-from-id= and the file, level, and point
+  stored in the Org-roam database.
+- Native include locations are formatted as quoted Org strings and preserve the
+  raw argument tail after the node ID.
+
+Future work can investigate recursive compilation of nested =#+ROAM_INCLUDE=.
+The reserved =org-roam-include-max-depth= option and
+=org-roam-include--expansion-stack= variable are not used by the current
+expansion algorithm.
+
+* Requirements
+- Emacs 31.0 or later
+- Org mode 9.7 or later
+- Org-roam 2.0.0 or later
+
+* Configuration
+Load the package and enable the global export preprocessor:
+
+#+BEGIN_SRC emacs-lisp
+  (load-file "~/Projects/org-roam-include/org-roam-include.el")
+  (org-roam-include-mode 1)
+#+END_SRC
+
+Use the diagnostic command to inspect the current configuration:
+
+#+BEGIN_SRC emacs-lisp
+  (org-roam-include-check-variables)
+#+END_SRC
+
+* Design Boundary
+Source Org files are not changed by export expansion.  Document composition
+happens in Org export temporary buffers.
+
+* LICENSE
+This project is licensed under the [[file:./LICENSE][GNU General Public License v3.0 or later]].
