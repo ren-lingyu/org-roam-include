@@ -560,7 +560,8 @@ whitespace when non-empty."
       (while (re-search-forward org-roam-include--keyword-line-regexp nil t)
         (when (and (string= (upcase (match-string-no-properties 2))
                             (upcase org-roam-include--keyword-name))
-                   (not (org-roam-include--org-in-commented-heading-p)))
+                   (not (save-match-data
+                          (org-roam-include--org-in-commented-heading-p))))
           (org-roam-include--keyword-compile-at-point))))))
 
 (defun org-roam-include--before-processing (_backend)
