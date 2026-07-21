@@ -106,6 +106,23 @@ current expansion logic does not recursively compile included files."
   '((org-roam-include-max-depth . integer))
   "Variables and expected types checked by `org-roam-include--check-variables'.")
 
+(defconst org-roam-include--capability-alist
+  '((org-export-before-processing-functions . variable)
+    (org-export-expand-include-keyword . function)
+    (advice-add . function)
+    (advice-remove . function)
+    (advice-member-p . function)
+    (org-element-parse-buffer . function)
+    (org-element-map . function)
+    (org-map-entries . function)
+    (org-entry-get . function)
+    (org-entry-delete . function)
+    (org-in-commented-heading-p . function))
+  "Runtime capabilities required by Org-roam Include.
+
+The list maps symbols to capability types checked by
+`org-roam-include--check-capabilities'.")
+
 (defconst org-roam-include--property-name
   "ROAM_INCLUDE"
   "Org property name used for headline mount declarations.")
@@ -174,6 +191,12 @@ This variable is reserved for a later recursive implementation.")
   (and (stringp key)
        (string= (upcase key)
                 (upcase org-roam-include--keyword-name))))
+
+(defun org-roam-include--warning (message)
+  "Display Org-roam Include warning MESSAGE without signaling an error."
+  (if (fboundp 'display-warning)
+      (display-warning 'org-roam-include message :warning)
+    (message "%s" message)))
 
 (defun org-roam-include--check-variables (alist)
   "Check Org-roam Include variables in ALIST.
@@ -279,6 +302,63 @@ human-readable report."
               (setq result_bool nil)))))
         (cons result_bool result_message))
     (cons nil "Inner Constant org-roam-include--variable-type-alist is NOT defined properly. ")))
+
+(defun org-roam-include--check-capabilities (alist)
+  "Check Org-roam Include runtime capabilities in ALIST.
+
+ALIST should map capability symbols to expected capability type symbols.
+Return a cons cell whose car is the boolean result and whose cdr is a
+human-readable report.  This check is capability-based rather than
+version-based so that package startup depends on the interfaces actually
+available in the running Emacs."
+  (if (listp alist)
+      (let ((result_bool t)
+            (result_message
+             "All org-roam-include runtime capabilities are as follow.\n"))
+        (dolist (pair alist)
+          (let* ((capability_name (car pair))
+                 (capability_expected_type (cdr pair))
+                 (capability_exists_p
+                  (cond
+                   ((eq capability_expected_type 'function)
+                    (fboundp capability_name))
+                   ((eq capability_expected_type 'variable)
+                    (boundp capability_name))
+                   (t
+                    nil))))
+            (setq result_message
+                  (concat
+                   result_message
+                   (format "- %s? %s \n" capability_name capability_exists_p)
+                   (format "  %s? %s (should be t)\n"
+                           capability_expected_type
+                           capability_exists_p)))
+            (unless capability_exists_p
+              (setq result_bool nil))))
+        (cons result_bool result_message))
+    (cons nil "Inner Constant org-roam-include--capability-alist is NOT defined properly. ")))
+
+(defun org-roam-include--setup-check ()
+  "Check whether Org-roam Include can be enabled.
+
+Return a cons cell whose car is the boolean result and whose cdr is a
+human-readable report."
+  (let ((variable_check_result
+         (org-roam-include--check-variables
+          org-roam-include--variable-type-alist))
+        (capability_check_result
+         (org-roam-include--check-capabilities
+          org-roam-include--capability-alist)))
+    (cons
+     (and (car variable_check_result)
+          (car capability_check_result))
+     (concat
+      (format "Variable validation result: %s\n"
+              (if (car variable_check_result) "passed" "failed"))
+      (cdr variable_check_result)
+      (format "Runtime capability validation result: %s\n"
+              (if (car capability_check_result) "passed" "failed"))
+      (cdr capability_check_result)))))
 
 (defun org-roam-include--mount-collect ()
   "Return positions of headlines with `org-roam-include--property-name'.
@@ -625,16 +705,22 @@ expected to run in Org's export temporary buffer."
 ;; ==============================
 
 ;;;###autoload
-(defun org-roam-include-check-variables ()
-  "Check variables required by Org-roam Include."
+(defun org-roam-include-check-setup ()
+  "Check whether Org-roam Include can be enabled.
+
+This command reports both variable validation and runtime capability
+validation."
   (interactive)
-  (let ((check_result
-         (org-roam-include--check-variables
-          org-roam-include--variable-type-alist)))
+  (let ((check_result (org-roam-include--setup-check)))
     (message "%s"
-             (if (consp check_result)
-                 (cdr check_result)
-               check_result))))
+             (if (and (consp check_result)
+                      (car check_result))
+                 (concat
+                  "Org-roam Include setup checks passed.\n"
+                  (cdr check_result))
+               (if (consp check_result)
+                   (cdr check_result)
+                 check_result)))))
 
 (defun org-roam-include-expand-buffer ()
   "Expand all Org-roam include forms in the current Org buffer.
@@ -663,19 +749,15 @@ preprocessed before parsing so that headlines with
   :group 'org-roam-include
   :lighter " ORI"
   (if org-roam-include-mode
-      (let ((check_result
-             (org-roam-include--check-variables
-              org-roam-include--variable-type-alist)))
+      (let ((check_result (org-roam-include--setup-check)))
         (if (car check_result)
             (add-hook 'org-export-before-processing-functions
                       #'org-roam-include--before-processing)
           (setq org-roam-include-mode nil)
-          (message "%s"
-                   (concat
-                    "[WARNING] There are variables not defined properly. "
-                    "Org Roam Include Mode setup failed.\n"
-                    "Variable validation result: failed\n"
-                    (cdr check_result)))))
+          (org-roam-include--warning
+           (concat
+            "Org Roam Include Mode setup failed.\n"
+            (cdr check_result)))))
     (remove-hook 'org-export-before-processing-functions
                  #'org-roam-include--before-processing)))
 
