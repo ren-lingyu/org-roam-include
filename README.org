@@ -409,10 +409,9 @@ points:
 - Org-roam 2.0.0 or later
 
 * Configuration
-Load the package and enable the global export preprocessor:
+Enable the global export preprocessor:
 
 #+BEGIN_SRC emacs-lisp
-  (load-file "~/Projects/org-roam-include/org-roam-include.el")
   (org-roam-include-mode 1)
 #+END_SRC
 
