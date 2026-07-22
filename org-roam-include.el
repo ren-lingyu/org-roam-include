@@ -4,7 +4,7 @@
 
 ;; Author: aRenCoco
 ;; Maintainer: aRenCoco
-;; Version: 0.0.1
+;; Version: 0.1.0
 ;; Package-Requires: ((emacs "31.0") (org "9.7") (org-roam "2.0.0"))
 ;; Keywords: outlines, hypermedia
 ;; URL: https://github.com/ren-lingyu/org-roam-include
