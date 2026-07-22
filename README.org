@@ -2,12 +2,15 @@
 #+AUTHOR: aRenCoco
 
 * Overview
-Org-roam-include is an Emacs package that resolves Org-roam node IDs to native
-Org =#+INCLUDE= locations during Org export.  Its purpose is deliberately small:
+Org-roam-include is an Emacs package that resolves Org-roam node IDs to Org
+=#+INCLUDE= targets during Org export.  File nodes use ordinary file
+locations, while headline nodes use private file-search locations that are
+understood by this package during native INCLUDE expansion.  Its purpose is
+deliberately small:
 
 #+BEGIN_QUOTE
-Resolve stable Org-roam node IDs to native Org =#+INCLUDE= locations, then let
-Org's exporter handle the include semantics.
+Resolve stable Org-roam node IDs to Org =#+INCLUDE= targets, then let Org's
+exporter handle the include semantics.
 #+END_QUOTE
 
 The package is not a transclusion system.  It does not provide editing-time
@@ -26,9 +29,9 @@ The intended layering is:
 #+END_SRC
 
 Org-roam owns node identity and node positions.  Org-roam-include only converts
-those positions into native include locations.  Org owns the later behavior:
-file reading, line ranges, headline level adjustment, footnotes, relative file
-links, and recursive expansion of ordinary =#+INCLUDE= keywords.
+those positions into include targets.  Org owns the later behavior: file
+reading, line ranges, headline level adjustment, footnotes, relative file links,
+and recursive expansion of ordinary =#+INCLUDE= keywords.
 
 * Current Status
 This is an early export-only implementation.  The current version supports the
@@ -338,8 +341,8 @@ Supported:
 The advice carries recursive expansion context through
 =org-roam-include--within-native-expansion= so temporary buffers created by
 Org's native INCLUDE expander are normalized before their own INCLUDE expansion
-runs.  File reading, depth control, and cycle detection for native =#+INCLUDE=
-keywords remain the responsibility of Org's native exporter.
+runs.  File reading, recursive expansion, and cycle detection for native
+=#+INCLUDE= keywords remain the responsibility of Org's native exporter.
 
 * Error Handling
 The current version reports these cases clearly:
@@ -394,8 +397,8 @@ points:
 - =org-roam-include--keyword-compile-all= uses =org-element-parse-buffer= to
   find real keyword elements and avoids changing literal text inside blocks.
 - Headline node locations use a private =org-roam-include-line:= prefix
-  resolved by =org-roam-include--execute-line-search=, which is registered in
-  =org-execute-file-search-functions= during expansion.
+  resolved by =org-roam-include--execute-line-search=, which is dynamically
+  bound in =org-execute-file-search-functions= during expansion.
 - Node resolution uses =org-roam-node-from-id= and the file, level, and point
   stored in the Org-roam database.
 - Native include locations are formatted as quoted Org strings and preserve the
@@ -407,6 +410,21 @@ points:
 - Emacs 31.0 or later
 - Org mode 9.7 or later
 - Org-roam 2.0.0 or later
+
+* Installation
+This repository is not published as an ELPA package yet.  For local use, put
+=org-roam-include.el= somewhere on =load-path=, then require it:
+
+#+BEGIN_SRC emacs-lisp
+  (add-to-list 'load-path "/path/to/org-roam-include")
+  (require 'org-roam-include)
+#+END_SRC
+
+During local development, loading the file directly is also sufficient:
+
+#+BEGIN_SRC emacs-lisp
+  (load-file "/path/to/org-roam-include/org-roam-include.el")
+#+END_SRC
 
 * Configuration
 Enable the global export preprocessor:
