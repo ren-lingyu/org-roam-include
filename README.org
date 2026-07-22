@@ -439,6 +439,17 @@ Use the diagnostic command to inspect the current configuration:
   (org-roam-include-check-setup)
 #+END_SRC
 
+* Tests
+Run the ERT tests with:
+
+#+BEGIN_SRC sh
+  emacs --batch -Q -l tests/org-roam-include-test.el -f ert-run-tests-batch-and-exit
+#+END_SRC
+
+The tests create source Org fixtures with Emacs' =make-temp-file=.  Those files
+are written under Emacs' =temporary-file-directory=; set =TMPDIR= before running
+Emacs if you want to control the temporary directory.
+
 * Design Boundary
 Source Org files are not changed by export expansion.  Document composition
 happens in Org export temporary buffers.
