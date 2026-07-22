@@ -55,16 +55,19 @@
 ;;
 ;; File nodes in the base syntax are compiled to whole-file INCLUDE locations.
 ;; Headline nodes are compiled to private line-search locations derived from
-;; the database point and the saved source file.  Native INCLUDE arguments are
-;; not interpreted by this package.  Properties on the mounting headline are
+;; the database point and the saved source file.  The private search syntax is
+;; resolved by a handler dynamically bound in `org-execute-file-search-functions'
+;; while Org's native INCLUDE expander runs.  Native INCLUDE arguments are not
+;; interpreted by this package.  Properties on the mounting headline are
 ;; preserved except for the controlling include property itself.
 ;;
 ;; The package normalizes Org-roam include forms immediately before each
 ;; invocation of Org's native INCLUDE expander.  A lightweight export hook marks
-;; export working buffers, while a thin around advice ensures that
-;; normalization is repeated in recursive INCLUDE buffers.  File reading,
-;; INCLUDE argument handling, recursive expansion, and cycle detection remain
-;; the responsibility of Org's native exporter.
+;; export working buffers, while a thin around advice carries recursive
+;; expansion context into temporary INCLUDE buffers and normalizes them before
+;; their own native INCLUDE expansion runs.  File reading, INCLUDE argument
+;; handling, recursive expansion, and cycle detection remain the responsibility
+;; of Org's native exporter.
 
 ;;; Code:
 

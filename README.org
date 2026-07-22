@@ -35,9 +35,9 @@ This is an early export-only implementation.  The current version supports the
 base =#+ROAM_INCLUDE= wrapper, file-node outline projection, and file-node
 headline mounts.
 
-The package deliberately keeps the first version narrow.  Headline-node property
-mounts, recursive =#+ROAM_INCLUDE= expansion, editing previews, and metadata
-migration are not implemented.
+Headline-node property mounts, editing previews, and metadata migration are not
+yet implemented.  File-node mounts and recursive =#+ROAM_INCLUDE= expansion via
+Org's native include expander are supported.
 
 * Core Syntax
 The base public syntax is:
@@ -130,10 +130,16 @@ saved source file:
 compiles to:
 
 #+BEGIN_SRC org
-  #+INCLUDE: "/absolute/path/to/file.org::137"
+  #+INCLUDE: "/absolute/path/to/file.org::org-roam-include-line:137"
 #+END_SRC
 
-The generated location uses =FILE::LINE= rather than =FILE::*Heading=,
+The generated location uses a private =org-roam-include-line:= prefix rather
+than a bare line number.  Org does not treat =::137= as a line search in native
+INCLUDE locations.  The private location is resolved at include time through a
+handler dynamically bound in =org-execute-file-search-functions= while
+Org-roam-include is normalizing export INCLUDE expansion.
+
+The package uses line-based lookup rather than =FILE::*Heading=,
 =FILE::#CUSTOM_ID=, or an ID-matching regexp.  Titles can be duplicated or
 renamed, =CUSTOM_ID= is optional, and a regexp matching =:ID:= would usually
 land inside a property drawer rather than on the headline element.
@@ -219,17 +225,34 @@ The current version does not automatically choose between those meanings for
 property mounts.
 
 * Export Pipeline
-The package installs an export preprocessor through:
+The package uses two integration points to normalize Org-roam include forms
+before Org parses them:
+
+1. A lightweight hook at =org-export-before-processing-functions= marks the
+   current buffer as an export working copy.
+
+2. An =:around= advice on =org-export-expand-include-keyword= normalizes all
+   =#+ROAM_INCLUDE= forms before each invocation of Org's native include
+   expander.
+
+This layered design ensures that =#+ROAM_INCLUDE= keywords inside recursively
+included files are also compiled.
 
 #+BEGIN_SRC emacs-lisp
-  org-export-before-processing-functions
-#+END_SRC
+  (defun org-roam-include--mark-export-buffer (_backend)
+    (setq org-roam-include--export-buffer-p t))
 
-The hook runs two stages:
-
-#+BEGIN_SRC emacs-lisp
-  (defun org-roam-include--before-processing (_backend)
-    (org-roam-include-expand-buffer))
+  (defun org-roam-include--around-expand-include-keyword
+      (original_function &rest arguments)
+    (if (or org-roam-include--export-buffer-p
+            org-roam-include--within-native-expansion)
+        (let ((org-roam-include--within-native-expansion t))
+          ;; The real implementation also dynamically binds
+          ;; `org-execute-file-search-functions' to enable the private
+          ;; `org-roam-include-line:' search syntax during native expansion.
+          (org-roam-include-expand-buffer)
+          (apply original_function arguments))
+      (apply original_function arguments)))
 #+END_SRC
 
 ** Stage 1: Mount Compiler
@@ -272,7 +295,7 @@ It:
 - parse only the first non-whitespace token as the node ID;
 - preserve the raw tail after the node ID;
 - resolve file nodes to =FILE=;
-- resolve headline nodes to =FILE::LINE=;
+- resolve headline nodes to =FILE::org-roam-include-line:N=;
 - leave all native include parameters to Org.
 
 Running mount compilation before keyword compilation is part of the semantics.
@@ -283,7 +306,9 @@ before the keyword compiler sees them.
 Generated native include locations are written into Org quoted strings:
 
 #+BEGIN_SRC org
-  #+INCLUDE: "/absolute/path.org::137"
+  #+INCLUDE: "/absolute/path.org"
+
+  #+INCLUDE: "/absolute/path.org::org-roam-include-line:137"
 #+END_SRC
 
 The current version rejects locations containing:
@@ -299,28 +324,22 @@ Use =expand-file-name= rather than =file-truename= so symbolic-link based
 logical paths are not unnecessarily rewritten.
 
 * Recursion
-After =#+ROAM_INCLUDE= is compiled to native =#+INCLUDE=, ordinary nested
-=#+INCLUDE= keywords in source files are handled by Org's native include
-expander.
+The =:around= advice on =org-export-expand-include-keyword= normalizes
+=#+ROAM_INCLUDE= keywords before each invocation of Org's native include
+expander.  After normalization, ordinary nested =#+INCLUDE= keywords in source
+files are handled by Org.
 
-The first version does not expand =#+ROAM_INCLUDE= keywords that appear inside
-included source files.
-
-Supported in the first version:
+Supported:
 
 #+BEGIN_SRC text
-  ROAM_INCLUDE -> native INCLUDE -> native INCLUDE
+  ROAM_INCLUDE -> native INCLUDE -> ROAM_INCLUDE -> native INCLUDE -> ...
 #+END_SRC
 
-Not yet supported:
-
-#+BEGIN_SRC text
-  ROAM_INCLUDE -> ROAM_INCLUDE
-#+END_SRC
-
-Future recursive support can use =org-roam-include--expansion-stack= and
-=org-roam-include-max-depth=, but the cycle key needs to include the projection
-or raw include tail, not just the node ID.
+The advice carries recursive expansion context through
+=org-roam-include--within-native-expansion= so temporary buffers created by
+Org's native INCLUDE expander are normalized before their own INCLUDE expansion
+runs.  File reading, depth control, and cycle detection for native =#+INCLUDE=
+keywords remain the responsibility of Org's native exporter.
 
 * Error Handling
 The current version reports these cases clearly:
@@ -351,8 +370,7 @@ The first version does not implement:
 - attachment context repair;
 - file metadata whitelists;
 - a custom include parser;
-- custom Org file-search hooks;
-- nested =ROAM_INCLUDE=;
+- user-facing custom Org file-search syntax;
 - automatic =org-roam-db-sync=;
 - fixes for native Org =#+INCLUDE= behavior.
 
@@ -361,26 +379,29 @@ handle, except for stable Org-roam ID resolution and explicitly defined node
 projections.
 
 * Implementation Notes
-The implementation is organized as a small export preprocessor:
+The implementation is organized as an export preprocessor with two integration
+points:
 
-- =org-roam-include-mode= installs
-  =org-roam-include--before-processing= in
-  =org-export-before-processing-functions=.
+- =org-roam-include-mode= installs =org-roam-include--mark-export-buffer= in
+  =org-export-before-processing-functions= to mark export buffers.
+- =org-roam-include-mode= also installs an =:around= advice on
+  =org-export-expand-include-keyword= that calls
+  =org-roam-include-expand-buffer= before each native include expansion.
 - =org-roam-include-expand-buffer= first compiles headline mounts, then compiles
   base =#+ROAM_INCLUDE= keywords.
 - =org-roam-include--mount-compile-all= uses Org headline and property APIs to
   process replacement mounts from bottom to top.
-- =org-roam-include--keyword-compile-all= uses Org element parsing to find real
-  keyword elements and avoids changing literal text inside blocks.
+- =org-roam-include--keyword-compile-all= uses =org-element-parse-buffer= to
+  find real keyword elements and avoids changing literal text inside blocks.
+- Headline node locations use a private =org-roam-include-line:= prefix
+  resolved by =org-roam-include--execute-line-search=, which is registered in
+  =org-execute-file-search-functions= during expansion.
 - Node resolution uses =org-roam-node-from-id= and the file, level, and point
   stored in the Org-roam database.
 - Native include locations are formatted as quoted Org strings and preserve the
   raw argument tail after the node ID.
-
-Future work can investigate recursive compilation of nested =#+ROAM_INCLUDE=.
-The reserved =org-roam-include-max-depth= option and
-=org-roam-include--expansion-stack= variable are not used by the current
-expansion algorithm.
+- =org-roam-include-check-setup= validates both user variables and runtime
+  capabilities before mode activation.
 
 * Requirements
 - Emacs 31.0 or later
@@ -398,7 +419,7 @@ Load the package and enable the global export preprocessor:
 Use the diagnostic command to inspect the current configuration:
 
 #+BEGIN_SRC emacs-lisp
-  (org-roam-include-check-variables)
+  (org-roam-include-check-setup)
 #+END_SRC
 
 * Design Boundary
