@@ -1,15 +1,21 @@
 *
 */
 
-!.gitignore
-!LICENSE
 !README.org
-
-!.github
-!.github/
+!.gitignore
+!.gitsubmodules
+!LICENSE
 
 !*.el
 
+!.github/
+!.github/**/
+!.github/**/*.yaml
+
+!tests/
+!tests/**/
+!tests/**/*.el
+
 *~
-*#*
+*#
 **/tmp/
