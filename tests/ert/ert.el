@@ -1,4 +1,4 @@
-;;; org-roam-include-test.el --- Tests for org-roam-include -*- lexical-binding: t; -*-
+;;; ert.el --- ERT tests for org-roam-include -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
@@ -12,23 +12,8 @@
 (require 'ert)
 (require 'org)
 (require 'ox)
-
-(cl-defstruct (org-roam-node
-               (:constructor org-roam-node-create
-                             (&key id file point level)))
-  id file point level)
-
-(defun org-roam-node-from-id (_id)
-  nil)
-
-(provide 'org-roam)
-
-(load-file
- (expand-file-name
-  "org-roam-include.el"
-  (file-name-directory
-   (directory-file-name
-    (file-name-directory (or load-file-name buffer-file-name))))))
+(require 'org-roam)
+(require 'org-roam-include)
 
 (defvar org-roam-include-test--fixtures nil)
 (defvar org-roam-include-test--nodes nil)
@@ -364,4 +349,4 @@ copy before invoking the native INCLUDE expander."
       #'org-roam-include--around-expand-include-keyword
       'org-export-expand-include-keyword))))
 
-;;; org-roam-include-test.el ends here
+;;; ert.el ends here
