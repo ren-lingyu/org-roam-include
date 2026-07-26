@@ -5,6 +5,8 @@
 !.gitignore
 !.gitsubmodules
 !LICENSE
+!flake.nix
+!flake.lock
 
 !*.el
 
@@ -15,6 +17,7 @@
 !tests/
 !tests/**/
 !tests/**/*.el
+!tests/**/*.nix
 
 *~
 *#
