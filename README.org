@@ -440,15 +440,18 @@ Use the diagnostic command to inspect the current configuration:
 #+END_SRC
 
 * Tests
-Run the ERT tests with:
+Run the complete test suite with:
 
 #+BEGIN_SRC sh
-  emacs --batch -Q -l tests/org-roam-include-test.el -f ert-run-tests-batch-and-exit
+  nix flake check
 #+END_SRC
 
-The tests create source Org fixtures with Emacs' =make-temp-file=.  Those files
-are written under Emacs' =temporary-file-directory=; set =TMPDIR= before running
-Emacs if you want to control the temporary directory.
+The flake builds the package with compilation warnings treated as errors, runs
+the ERT suite against the built package and its real Org-roam dependency, and
+runs =package-lint= against the filtered source tree.
+
+The ERT suite creates source Org fixtures with Emacs' =make-temp-file=.  During
+=nix flake check=, those files are written to the isolated build environment.
 
 * Design Boundary
 Source Org files are not changed by export expansion.  Document composition
