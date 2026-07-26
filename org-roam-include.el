@@ -5,7 +5,7 @@
 ;; Author: aRenCoco
 ;; Maintainer: aRenCoco
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "31.0") (org "9.7") (org-roam "2.0.0"))
+;; Package-Requires: ((emacs "30.1") (org "9.7") (org-roam "2.0.0"))
 ;; Keywords: outlines, hypermedia
 ;; URL: https://github.com/ren-lingyu/org-roam-include
 ;; SPDX-License-Identifier: GPL-3.0-or-later
