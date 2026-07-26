@@ -453,6 +453,24 @@ runs =package-lint= against the filtered source tree.
 The ERT suite creates source Org fixtures with Emacs' =make-temp-file=.  During
 =nix flake check=, those files are written to the isolated build environment.
 
+* Repository Structure
+#+BEGIN_SRC text
+  .
+  ├── flake.nix
+  ├── flake.lock
+  ├── org-roam-include.el
+  ├── README.org
+  ├── LICENSE
+  ├── .gitignore
+  └── tests/
+      ├── default.nix
+      ├── ert/
+      │   ├── default.nix
+      │   └── ert.el
+      └── package-lint/
+          └── default.nix
+#+END_SRC
+
 * Design Boundary
 Source Org files are not changed by export expansion.  Document composition
 happens in Org export temporary buffers.
