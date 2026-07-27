@@ -89,7 +89,13 @@
 ;;;###autoload
 (defgroup org-roam-include
   nil
-  "Include Org-roam node contents during Org export."
+  "Resolve Org-roam nodes into native Org includes during export.
+
+Customize this group to control Org-roam Include behavior.  The package acts
+only on Org export working buffers and leaves source Org files unchanged.
+
+Rationale: Org-roam owns node identity while Org owns include expansion, so
+this group covers only the adapter between those systems."
   :group 'org-roam)
 
 ;; ==============================
@@ -98,7 +104,14 @@
 
 (defconst org-roam-include--variable-type-alist
   nil
-  "Variables and expected types checked by `org-roam-include--check-variables'.")
+  "Variables and expected types checked before enabling the package.
+
+Each entry has the form (VARIABLE . TYPE) understood by
+`org-roam-include--check-variables'.  The list is currently empty because the
+package exposes no behavior-changing user options.
+
+Rationale: Keeping the validation input explicit lets future options join the
+same setup report without coupling the validator to particular variables.")
 
 (defconst org-roam-include--capability-alist
   '((org-export-before-processing-functions . variable)
@@ -116,15 +129,25 @@
   "Runtime capabilities required by Org-roam Include.
 
 The list maps symbols to capability types checked by
-`org-roam-include--check-capabilities'.")
+`org-roam-include--check-capabilities'.
+
+Rationale: Checking the interfaces used by the implementation is more precise
+than inferring compatibility from package version numbers alone.")
 
 (defconst org-roam-include--property-name
   "ROAM_INCLUDE"
-  "Org property name used for headline mount declarations.")
+  "Org property name used to declare headline replacement mounts.
+
+The property value is an Org-roam node ID.  A mount preserves its local
+headline and unrelated properties while replacing its body and descendants in
+the export working copy.")
 
 (defconst org-roam-include--keyword-name
   "ROAM_INCLUDE"
-  "Org keyword name used for base include wrappers.")
+  "Org keyword name used for base Org-roam include declarations.
+
+The keyword value begins with an Org-roam node ID followed by an uninterpreted
+tail of native Org INCLUDE arguments.")
 
 (defconst org-roam-include--property-drawer-begin-regexp
   (rx line-start
@@ -132,7 +155,10 @@ The list maps symbols to capability types checked by
       ":PROPERTIES:"
       (* (any " \t"))
       line-end)
-  "Regexp matching the beginning line of an Org property drawer.")
+  "Regexp matching an Org property drawer opening line.
+
+This fallback parser is used only when the running Org lacks the preferred
+metadata boundary helper.")
 
 (defconst org-roam-include--property-drawer-end-regexp
   (rx line-start
@@ -140,7 +166,10 @@ The list maps symbols to capability types checked by
       ":END:"
       (* (any " \t"))
       line-end)
-  "Regexp matching the end line of an Org property drawer.")
+  "Regexp matching an Org property drawer closing line.
+
+This pairs with `org-roam-include--property-drawer-begin-regexp' in the
+compatibility fallback for locating headline body content.")
 
 (defconst org-roam-include--keyword-line-regexp
   (rx line-start
@@ -150,7 +179,10 @@ The list maps symbols to capability types checked by
       ":"
       (group (* nonl))
       line-end)
-  "Regexp matching an Org keyword line.")
+  "Regexp matching one complete Org keyword line.
+
+The groups capture indentation, keyword name, and raw value so compilation can
+replace only that line while preserving its indentation.")
 
 (defconst org-roam-include--node-id-and-tail-regexp
   (rx string-start
@@ -158,49 +190,79 @@ The list maps symbols to capability types checked by
       (group (+ (not (any " \t\n\r"))))
       (group (* anything))
       string-end)
-  "Regexp matching an Org-roam include node ID and raw INCLUDE tail.")
+  "Regexp separating an Org-roam node ID from its raw INCLUDE tail.
+
+The first non-whitespace token is the node ID.  Everything after it is retained
+verbatim so native INCLUDE argument semantics remain owned by Org.")
 
 (defconst org-roam-include--unquotable-location-regexp
   (rx (any "\"\n\r"))
-  "Regexp matching characters unsupported in generated INCLUDE locations.")
+  "Regexp matching characters unsupported in generated INCLUDE locations.
+
+Rationale: Generated locations are placed in quoted Org syntax.  Rejecting
+ambiguous delimiters is safer than applying Elisp-style escaping to Org text.")
 
 (defconst org-roam-include--line-search-prefix
   "org-roam-include-line:"
-  "Prefix used for internal headline line search locations.")
+  "Prefix used for private headline line-search locations.
+
+The prefix distinguishes package-generated line numbers from Org's public
+file-search syntax.")
 
 (defconst org-roam-include--line-search-regexp
   (rx string-start
       "org-roam-include-line:"
       (group (+ digit))
       string-end)
-  "Regexp matching an internal Org-roam Include line location.")
+  "Regexp matching a complete private headline line-search value.
+
+The captured decimal line number is interpreted by
+`org-roam-include--execute-line-search' during native INCLUDE expansion.")
 
 ;; ==============================
 ;; 内部变量
 ;; ==============================
 
 (defvar-local org-roam-include--export-buffer-p nil
-  "Non-nil when the current buffer is an Org export working copy.")
+  "Non-nil when the current buffer is an Org export working copy.
+
+`org-roam-include--mark-export-buffer' sets this marker from Org's export hook.
+It prevents interactive source buffers from being normalized by the advice.")
 
 (defvar org-roam-include--within-native-expansion nil
-  "Non-nil while recursively expanding native Org INCLUDE keywords.")
+  "Non-nil while recursively expanding native Org INCLUDE keywords.
+
+The variable is dynamically bound by
+`org-roam-include--around-expand-include-keyword' so temporary buffers created
+by Org for nested includes inherit normalization context.
+
+Rationale: Nested temporary buffers do not necessarily run the original export
+hook, so recursion needs an explicit dynamic context.")
 
 ;; ==============================
 ;; 内部函数
 ;; ==============================
 
 (defun org-roam-include--keyword-prefix ()
-  "Return the Org keyword prefix used by Org-roam Include."
+  "Return the textual prefix for a base Org-roam include keyword.
+
+The returned string includes the #+ prefix and trailing colon.  Centralizing
+this format keeps diagnostics and generated keyword text consistent."
   (format "#+%s:" org-roam-include--keyword-name))
 
 (defun org-roam-include--keyword-name-p (key)
-  "Return non-nil when KEY names an Org-roam include keyword."
+  "Return non-nil when KEY names an Org-roam include keyword.
+
+KEY may use any letter case accepted by Org.  Non-string values return nil."
   (and (stringp key)
        (string= (upcase key)
                 (upcase org-roam-include--keyword-name))))
 
 (defun org-roam-include--warning (message)
-  "Display Org-roam Include warning MESSAGE without signaling an error."
+  "Display Org-roam Include warning MESSAGE without signaling an error.
+
+Use `display-warning' when available and fall back to `message' otherwise.
+This helper is intended for setup failures that disable the mode cleanly."
   (if (fboundp 'display-warning)
       (display-warning 'org-roam-include message :warning)
     (message "%s" message)))
@@ -208,10 +270,18 @@ The list maps symbols to capability types checked by
 (defun org-roam-include--check-variables (alist)
   "Check Org-roam Include variables in ALIST.
 
-ALIST should map variable symbols to expected type symbols.  This
-function follows the diagnostic style of `org-roam-organize--check-variables'
-and returns a cons cell whose car is the boolean result and whose cdr is a
-human-readable report."
+ALIST maps variable symbols to expected type symbols.  Return a cons cell whose
+car is non-nil when every entry is valid and whose cdr is a human-readable
+report.  Supported types are `list', `string', `directory', `file', `boolean',
+and positive `integer'.
+
+Implementation notes: Each variable is read dynamically and checked against
+the declared type while the same observations are appended to the report.
+Malformed validation input produces a failed result instead of signaling.
+
+Rationale: Setup diagnostics need to report all invalid options in one pass
+rather than stop at the first failure.  The data-driven table also keeps
+validation policy separate from mode activation."
   (if (listp alist)
       (let* ((result_bool t)
              (result_message
@@ -313,11 +383,16 @@ human-readable report."
 (defun org-roam-include--check-capabilities (alist)
   "Check Org-roam Include runtime capabilities in ALIST.
 
-ALIST should map capability symbols to expected capability type symbols.
-Return a cons cell whose car is the boolean result and whose cdr is a
-human-readable report.  This check is capability-based rather than
-version-based so that package startup depends on the interfaces actually
-available in the running Emacs."
+ALIST maps symbols to either `function' or `variable'.  Return a cons cell
+whose car is non-nil when every capability exists and whose cdr is a
+human-readable report.  Malformed input yields a failed result.
+
+Implementation notes: Functions are checked with `fboundp' and variables with
+`boundp'.  Every result is recorded so callers can display one complete setup
+report.
+
+Rationale: Package startup should depend on the interfaces actually available
+in the running Emacs and Org, not only on declared version numbers."
   (if (listp alist)
       (let ((result_bool t)
             (result_message
@@ -349,7 +424,13 @@ available in the running Emacs."
   "Check whether Org-roam Include can be enabled.
 
 Return a cons cell whose car is the boolean result and whose cdr is a
-human-readable report."
+human-readable report covering variable and runtime capability validation.
+
+Implementation notes: The two independent validators always run and their
+reports are concatenated.  The combined result succeeds only when both pass.
+
+Rationale: `org-roam-include-mode' needs one side-effect-free gate that can
+also power the user-facing `org-roam-include-check-setup' command."
   (let ((variable_check_result
          (org-roam-include--check-variables
           org-roam-include--variable-type-alist))
@@ -373,7 +454,14 @@ human-readable report."
 Positions are returned from bottom to top so buffer mutations do not
 invalidate earlier positions.  The scan respects the current buffer
 restriction, skips COMMENT subtrees, and ignores mounts inside another
-replacement mount."
+replacement mount.
+
+Implementation notes: `org-map-entries' supplies real headline positions in
+the accessible region.  Ancestor mounts are excluded because replacing an
+outer mount deletes its original descendants.
+
+Rationale: Collecting first and mutating later separates structural discovery
+from edits and makes nested replacement semantics deterministic."
   (let (mounts)
     (org-map-entries
      (lambda ()
@@ -386,7 +474,14 @@ replacement mount."
     (sort mounts #'>)))
 
 (defun org-roam-include--mount-ancestor-p ()
-  "Return non-nil when the current headline has a mounted ancestor."
+  "Return non-nil when the current headline has a mounted ancestor.
+
+Point must be at or within an Org headline.  The search walks parent headings
+without changing the caller's point.
+
+Rationale: A nested mount belongs to content that its nearest mounted ancestor
+will replace, so compiling it separately would perform unnecessary resolution
+and could surface errors for content that will be discarded."
   (save-excursion
     (catch 'mounted
       (while (org-up-heading-safe)
@@ -395,14 +490,23 @@ replacement mount."
       nil)))
 
 (defun org-roam-include--org-in-commented-heading-p ()
-  "Return non-nil when point is in a COMMENT subtree."
+  "Return non-nil when point is in a COMMENT subtree.
+
+Text before the first headline returns nil.  Errors from Org's positional
+helpers are treated conservatively as not commented.
+
+Rationale: COMMENT subtrees are not exported, so their include declarations
+must remain inert during normalization."
   (and (not (condition-case nil
                 (org-before-first-heading-p)
               (error nil)))
        (org-in-commented-heading-p)))
 
 (defun org-roam-include--org-subtree-end ()
-  "Return the end position of the current subtree."
+  "Return the end position of the current Org subtree.
+
+Point may be anywhere in the subtree and is preserved.  The returned position
+includes invisible content and is suitable as a replacement boundary."
   (save-excursion
     (org-back-to-heading t)
     (org-end-of-subtree t t)
@@ -411,7 +515,11 @@ replacement mount."
 (defun org-roam-include--org-skip-property-drawer (&optional bound)
   "Move point past the property drawer at point.
 
-When BOUND is non-nil, do not search past it."
+When BOUND is non-nil, do not search past it.  Leave point unchanged when no
+drawer begins at point, and signal `user-error' for an unterminated drawer.
+
+Implementation notes: This is the compatibility path used when Org does not
+provide the preferred metadata boundary helper."
   (when (looking-at-p org-roam-include--property-drawer-begin-regexp)
     (unless (re-search-forward
              org-roam-include--property-drawer-end-regexp
@@ -421,7 +529,14 @@ When BOUND is non-nil, do not search past it."
     (forward-line 1)))
 
 (defun org-roam-include--org-skip-node-metadata ()
-  "Move point past immediate planning lines and property drawer."
+  "Move point past immediate planning lines and a property drawer.
+
+Point should begin immediately after an Org headline.  Prefer
+`org-end-of-meta-data' when available; otherwise use Org's planning regexp and
+the local property-drawer parser.
+
+Rationale: Mount replacement must preserve headline metadata while deleting
+only body text and child subtrees across supported Org versions."
   (if (fboundp 'org-end-of-meta-data)
       (org-end-of-meta-data 'standard)
     (while (and (boundp 'org-planning-line-re)
@@ -430,18 +545,31 @@ When BOUND is non-nil, do not search past it."
     (org-roam-include--org-skip-property-drawer)))
 
 (defun org-roam-include--org-headline-body-begin ()
-  "Return the body beginning position of the current headline."
+  "Return the body beginning position of the current Org headline.
+
+Point may be anywhere in the subtree and is preserved.  Planning lines and the
+property drawer are excluded from the body boundary."
   (save-excursion
     (org-back-to-heading t)
     (org-roam-include--org-skip-node-metadata)
     (point)))
 
 (defun org-roam-include--include-line-number-at-pos (pos)
-  "Return the 1-based line number at POS."
+  "Return the one-based line number at buffer position POS.
+
+Absolute line numbers are required because generated headline locations are
+later resolved in a fresh buffer containing the saved source file."
   (line-number-at-pos pos t))
 
 (defun org-roam-include--keyword-positions ()
-  "Return Org-roam include keyword positions from bottom to top."
+  "Return base Org-roam include keyword positions from bottom to top.
+
+Only real Org keyword elements in the accessible buffer are returned, so
+keyword-looking text inside literal blocks is ignored.
+
+Implementation notes: Positions come from an Org Element parse tree and prefer
+`:post-affiliated' so replacement starts at the keyword rather than attached
+affiliated syntax.  Reverse order keeps positions stable while editing."
   (let ((ast (org-element-parse-buffer))
         positions)
     (org-element-map ast 'keyword
@@ -454,7 +582,10 @@ When BOUND is non-nil, do not search past it."
     (sort positions #'>)))
 
 (defun org-roam-include--outline-first-headline-begin ()
-  "Return the beginning position of the first Org headline."
+  "Return the beginning position of the first Org headline, or nil.
+
+The search respects the current buffer restriction and uses Org Element
+parsing rather than a textual star-prefix search."
   (org-element-map (org-element-parse-buffer)
       'headline
     (lambda (headline)
@@ -466,7 +597,17 @@ When BOUND is non-nil, do not search past it."
   "Handle internal Org-roam Include line SEARCH.
 
 Return non-nil when SEARCH uses the private Org-roam Include line syntax.
-Leave point at the corresponding headline."
+Leave point at the corresponding headline.  Signal `user-error' when a
+recognized line is invalid, outside the file, or not a headline.
+
+Implementation notes: SEARCH is decoded with
+`org-roam-include--line-search-regexp', then resolved from `point-min' using
+one-based physical line numbering.
+
+Rationale: Org's native file-search syntax does not provide the exact
+database-point semantics needed for headline nodes.  A private handler lets
+the native INCLUDE expander retain ownership of file loading and subtree
+selection."
   (when (string-match org-roam-include--line-search-regexp search)
     (let ((line (string-to-number
                  (match-string-no-properties 1 search))))
@@ -482,7 +623,16 @@ Leave point at the corresponding headline."
 (defun org-roam-include--node-location-data (node)
   "Return NODE location data from the Org-roam database.
 
-The returned plist has keys :file, :point, :level, and :id."
+The returned plist has keys `:file', `:point', `:level', and `:id'.  Signal
+`user-error' when the saved file is unreadable or the recorded point and level
+are structurally invalid.
+
+Implementation notes: This function validates only data available without
+opening the source file.  Buffer-relative bounds and headline alignment are
+checked later by `org-roam-include--node-location'.
+
+Rationale: Org-roam remains the authority for node identity and position; this
+package validates that data but does not rescan files to repair it."
   (let ((file (org-roam-node-file node))
         (node_point (org-roam-node-point node))
         (node_level (org-roam-node-level node))
@@ -501,7 +651,14 @@ The returned plist has keys :file, :point, :level, and :id."
           :id id)))
 
 (defun org-roam-include--source-with-buffer (location thunk)
-  "Run THUNK in a temporary Org buffer for LOCATION."
+  "Call THUNK in a temporary Org buffer for LOCATION.
+
+LOCATION is a plist containing `:file'.  Insert the saved file contents,
+activate `org-mode' without startup hooks, and return THUNK's value.
+
+Rationale: Include semantics operate on saved source files, matching Org's
+native exporter.  A temporary buffer avoids consulting or modifying an
+existing visiting buffer with unsaved changes."
   (let ((file (plist-get location :file)))
     (with-temp-buffer
       (insert-file-contents file)
@@ -510,7 +667,22 @@ The returned plist has keys :file, :point, :level, and :id."
       (funcall thunk))))
 
 (defun org-roam-include--node-location (node)
-  "Return NODE as resolver data with a native Org INCLUDE location."
+  "Return resolver data for NODE with a native Org INCLUDE location.
+
+File nodes receive their expanded absolute file name as `:location'.  Headline
+nodes receive a private line-search location plus `:line'.  The result retains
+the validated `:file', `:point', `:level', and `:id' fields.
+
+Signal `user-error' when the database point is outside the saved file or a
+headline node does not point at a headline.
+
+Implementation notes: The saved file is parsed in a temporary Org buffer.
+Headline locations encode the database point as a physical line consumed by
+`org-roam-include--execute-line-search'.
+
+Rationale: Titles, custom IDs, and textual ID searches are either ambiguous or
+land at a different structural position.  Validating the recorded Org-roam
+point preserves database authority and reports stale data explicitly."
   (let* ((raw_location (org-roam-include--node-location-data node))
          (raw_file (plist-get raw_location :file))
          (expanded_file (expand-file-name raw_file))
@@ -554,7 +726,14 @@ The returned plist has keys :file, :point, :level, and :id."
                                  line)))))))))
 
 (defun org-roam-include--node-resolve (id)
-  "Resolve ID to Org-roam node data and a native INCLUDE location."
+  "Resolve Org-roam node ID to native INCLUDE resolver data.
+
+Signal `user-error' when ID is empty, no node exists, or its saved location is
+invalid.  Return the plist produced by `org-roam-include--node-location'.
+
+Rationale: Resolution deliberately uses `org-roam-node-from-id' without
+triggering database synchronization or fallback file scans.  Export should
+fail clearly when the user's Org-roam database is stale."
   (when (string-empty-p id)
     (user-error "%s node ID is empty"
                 org-roam-include--keyword-name))
@@ -567,7 +746,16 @@ The returned plist has keys :file, :point, :level, and :id."
   "Return the first headline line for file NODE.
 
 Signal a user error when NODE is not a file node or has no headline
-content in its saved source file."
+content in its saved source file.  Also reject database points outside the
+saved file.
+
+Implementation notes: The source is parsed in a temporary Org buffer and the
+first headline position is converted to a one-based physical line.
+
+Rationale: A file-node mount projects the file's outline forest rather than
+its file-level metadata and first section.  Headline-node mount semantics are
+left undefined because preserving or removing the referenced headline are
+both reasonable choices."
   (let* ((location (org-roam-include--node-location-data node))
          (file (plist-get location :file))
          (point (plist-get location :point))
@@ -594,7 +782,14 @@ content in its saved source file."
          (org-roam-include--include-line-number-at-pos headline_begin))))))
 
 (defun org-roam-include--include-quote-location (location)
-  "Quote LOCATION for use in an Org INCLUDE keyword."
+  "Return LOCATION quoted for use in an Org INCLUDE keyword.
+
+Signal `user-error' when LOCATION contains a quote or line break that cannot
+be represented by the generated syntax.
+
+Rationale: LOCATION is Org source text, not an Elisp string.  Rejecting
+unsupported characters avoids applying an escaping model that Org may
+interpret differently."
   (when (string-match-p
          org-roam-include--unquotable-location-regexp
          location)
@@ -606,13 +801,24 @@ content in its saved source file."
   "Format native INCLUDE using LOCATION and RAW_TAIL.
 
 RAW_TAIL is inserted unchanged and should include its own leading
-whitespace when non-empty."
+whitespace when non-empty.  Return one native #+INCLUDE: line without a
+trailing newline.
+
+Rationale: Org owns the syntax and behavior of native INCLUDE arguments.
+Preserving RAW_TAIL prevents this package from becoming a second INCLUDE
+parser."
   (format "#+INCLUDE: %s%s"
           (org-roam-include--include-quote-location location)
           raw_tail))
 
 (defun org-roam-include--keyword-parse-value (value)
-  "Parse Org-roam include keyword VALUE as a cons cell (ID . RAW-TAIL)."
+  "Parse Org-roam include keyword VALUE as (ID . RAW-TAIL).
+
+ID is the first non-whitespace token and RAW-TAIL contains all remaining text
+unchanged.  Signal `user-error' when VALUE has no node ID.
+
+Rationale: Only node resolution belongs to Org-roam Include; native argument
+tokenization remains Org's responsibility."
   (unless (string-match org-roam-include--node-id-and-tail-regexp value)
     (user-error "%s node ID is empty"
                 org-roam-include--keyword-name))
@@ -622,7 +828,13 @@ whitespace when non-empty."
 (defun org-roam-include--keyword-parse-line ()
   "Parse the Org-roam include keyword line at point.
 
-Return a plist with keys :begin, :end, :indentation, :key, and :value."
+Return a plist with keys `:begin', `:end', `:indentation', `:key', and
+`:value'.  Signal `user-error' when the current line is not the configured
+Org-roam include keyword.
+
+Implementation notes: Parsing is limited to one physical line selected earlier
+through Org Element, while the regexp retains exact indentation and value
+text for replacement."
   (let* ((line_begin (line-beginning-position))
          (line_end (line-end-position))
          (line (buffer-substring-no-properties line_begin line_end)))
@@ -640,7 +852,17 @@ Return a plist with keys :begin, :end, :indentation, :key, and :value."
           :value (match-string-no-properties 3 line))))
 
 (defun org-roam-include--keyword-compile-at-point ()
-  "Compile the Org-roam include keyword at point to a native INCLUDE keyword."
+  "Compile the Org-roam include keyword at point to native INCLUDE syntax.
+
+Replace only the current keyword line, preserving its indentation and raw
+native argument tail.  Node lookup and location validation errors are allowed
+to propagate as user-facing export failures.
+
+Implementation notes: The line parser, value parser, node resolver, and native
+formatter form separate stages so each syntax boundary has one owner.
+
+Rationale: Producing ordinary #+INCLUDE: text lets Org handle file reading,
+argument semantics, recursion, and cycle detection."
   (let* ((line_data (org-roam-include--keyword-parse-line))
          (line_begin (plist-get line_data :begin))
          (line_end (plist-get line_data :end))
@@ -659,20 +881,40 @@ Return a plist with keys :begin, :end, :indentation, :key, and :value."
     (insert indentation native_include)))
 
 (defun org-roam-include--mount-id-at-point ()
-  "Return the mounted Org-roam node ID at point."
+  "Return the mounted Org-roam node ID at point.
+
+Read `org-roam-include--property-name' from the current headline and trim
+surrounding whitespace.  Return the empty string when the property is absent.
+
+Rationale: Returning a string gives the mount compiler one explicit empty-ID
+error path for missing and blank property values."
   (string-trim
    (or (org-entry-get (point) org-roam-include--property-name)
        "")))
 
 (defun org-roam-include--keyword-format-base (id raw_tail)
-  "Format a base Org-roam include keyword from ID and RAW_TAIL."
+  "Return a base Org-roam include keyword for ID and RAW_TAIL.
+
+RAW_TAIL is inserted unchanged and must carry its own leading whitespace.
+The result has no trailing newline.
+
+Rationale: Mount compilation emits the same public base syntax accepted from
+users, allowing one later keyword compiler to own node resolution."
   (format "%s %s%s"
           (org-roam-include--keyword-prefix)
           id
           raw_tail))
 
 (defun org-roam-include--mount-replace-body (content)
-  "Replace the current headline body with CONTENT."
+  "Replace the current headline body and descendants with CONTENT.
+
+Preserve the headline, planning data, and property drawer.  Delete everything
+from the body boundary through the subtree end, then insert CONTENT as the new
+body when it is non-empty.
+
+Rationale: A mount is a replacement point, not an append operation.  Removing
+local body and children prevents stale local content from being exported
+alongside the mounted outline."
   (let ((body_begin (org-roam-include--org-headline-body-begin))
         (body_end (org-roam-include--org-subtree-end)))
     (delete-region body_begin body_end)
@@ -681,7 +923,23 @@ Return a plist with keys :begin, :end, :indentation, :key, and :value."
       (insert "\n" content "\n"))))
 
 (defun org-roam-include--mount-compile-at-point ()
-  "Compile the mounted headline at point to a base Org-roam include keyword."
+  "Compile the mounted headline at point to a base include keyword.
+
+The current headline must have a non-empty mount property naming an existing
+file node.  Remove only the controlling property, preserve other metadata, and
+replace the local body and descendants with a base Org-roam include restricted
+to the referenced file's outline.
+
+Signal `user-error' for empty or missing node IDs, stale locations, file nodes
+without headlines, and headline-node mounts.
+
+Implementation notes: The outline start line becomes a native `:lines'
+argument on the generated base keyword.  Actual node-to-location resolution is
+deferred to the keyword compiler.
+
+Rationale: Keeping the local headline supplies document structure, while the
+file-node outline supplies mounted content.  Compiling through base syntax
+avoids a second native INCLUDE generation path."
   (org-back-to-heading t)
   (let ((id (org-roam-include--mount-id-at-point)))
     (when (string-empty-p id)
@@ -703,7 +961,16 @@ Return a plist with keys :begin, :end, :indentation, :key, and :value."
       (org-roam-include--mount-replace-body roam_include))))
 
 (defun org-roam-include--mount-compile-all ()
-  "Compile all Org-roam include mounts in current buffer."
+  "Compile all Org-roam include mounts in the current buffer.
+
+The operation respects narrowing and COMMENT subtrees.  Mounts are processed
+from bottom to top using positions collected before mutation.
+
+Implementation notes: Rechecking `org-at-heading-p' protects against structural
+changes made by a previously processed outer region.
+
+Rationale: Mount compilation must precede keyword compilation so discarded
+local content cannot trigger node resolution or export errors."
   (let ((mounts (org-roam-include--mount-collect)))
     (dolist (pos mounts)
       (goto-char pos)
@@ -711,7 +978,13 @@ Return a plist with keys :begin, :end, :indentation, :key, and :value."
         (org-roam-include--mount-compile-at-point)))))
 
 (defun org-roam-include--keyword-compile-all ()
-  "Compile all Org-roam include keywords in the current buffer."
+  "Compile all base Org-roam include keywords in the current buffer.
+
+The operation respects narrowing, ignores COMMENT subtrees, and does not
+modify keyword-looking text inside literal Org elements.
+
+Implementation notes: Positions are obtained from one Org Element parse and
+processed from bottom to top to remain valid during line replacement."
   (save-excursion
     (dolist (pos (org-roam-include--keyword-positions))
       (goto-char pos)
@@ -719,7 +992,13 @@ Return a plist with keys :begin, :end, :indentation, :key, and :value."
         (org-roam-include--keyword-compile-at-point)))))
 
 (defun org-roam-include--mark-export-buffer (_backend)
-  "Mark the current buffer as an Org export working copy."
+  "Mark the current buffer as an Org export working copy.
+
+_BACKEND is the backend argument supplied by
+`org-export-before-processing-functions' and is intentionally ignored.
+
+Rationale: The marker confines automatic normalization to export copies while
+leaving source and ordinary interactive buffers unchanged."
   (setq org-roam-include--export-buffer-p t))
 
 (defun org-roam-include--around-expand-include-keyword
@@ -727,7 +1006,19 @@ Return a plist with keys :begin, :end, :indentation, :key, and :value."
   "Normalize Org-roam includes before native INCLUDE expansion.
 
 ORIGINAL_FUNCTION is `org-export-expand-include-keyword'.  ARGUMENTS
-are passed to ORIGINAL_FUNCTION unchanged."
+are passed to ORIGINAL_FUNCTION unchanged.  Normalize only marked export
+buffers or buffers reached recursively from an active native expansion.
+
+Implementation notes: Dynamically bind
+`org-roam-include--within-native-expansion' for nested temporary buffers and
+temporarily add `org-roam-include--execute-line-search' to
+`org-execute-file-search-functions'.  Normalize the current buffer, then call
+Org's original expander.
+
+Rationale: Running immediately before every native expansion handles
+Org-roam include forms inside recursively included files.  The thin advice
+retains Org's ownership of file loading, native arguments, recursion, and
+cycle detection."
   (if (or org-roam-include--export-buffer-p
           org-roam-include--within-native-expansion)
       (let ((org-roam-include--within-native-expansion t)
@@ -753,7 +1044,15 @@ are passed to ORIGINAL_FUNCTION unchanged."
   "Check whether Org-roam Include can be enabled.
 
 This command reports both variable validation and runtime capability
-validation."
+validation in the echo area.  Invoke it when diagnosing why
+`org-roam-include-mode' refuses to stay enabled.
+
+Implementation notes: The command delegates to the same side-effect-free
+`org-roam-include--setup-check' used during mode activation and adds a success
+prefix when all checks pass.
+
+Rationale: A user-facing diagnostic should report the exact gate used by the
+mode rather than maintain a parallel compatibility test."
   (interactive)
   (let ((check_result (org-roam-include--setup-check)))
     (message "%s"
@@ -772,7 +1071,18 @@ validation."
 Compile file-node property mounts to base Org-roam include keywords, then
 compile base Org-roam include keywords to native Org INCLUDE keywords.  This
 function only normalizes the current buffer.  Recursive file expansion is
-performed by Org's native include expander."
+performed by Org's native include expander.
+
+Call this function on an Org export working copy or another disposable buffer;
+it destructively edits the current buffer and does not save any file.
+
+Implementation notes: Mount compilation runs first because replacement mounts
+delete their original bodies and descendants.  Keyword compilation then
+resolves only declarations that remain in the resulting document.
+
+Rationale: Exposing the normalization stage independently keeps transformation
+logic testable while automatic recursion remains integrated at Org's native
+expansion boundary."
   (org-roam-include--mount-compile-all)
   (org-roam-include--keyword-compile-all))
 
@@ -785,9 +1095,26 @@ performed by Org's native include expander."
 (define-minor-mode org-roam-include-mode
   "Toggle recursive Org-roam include normalization during Org export.
 
-The mode is global.  When enabled, Org export temporary buffers are
-marked before parsing, and Org-roam include forms are normalized before each
-invocation of Org's native INCLUDE expander."
+The mode is global.  Enable it before exporting documents that contain
+`ROAM_INCLUDE' keywords or properties.  Org export temporary buffers are
+marked before parsing, and declarations are normalized before each invocation
+of Org's native INCLUDE expander.  Disabling the mode removes both integration
+points.
+
+If setup validation fails, leave the mode disabled, remove any partial hook or
+advice installation, and display the complete diagnostic report.  The mode
+does not modify or save source Org files and does not synchronize the Org-roam
+database.
+
+Implementation notes: `org-export-before-processing-functions' marks the
+initial export copy, while an around advice on
+`org-export-expand-include-keyword' carries dynamic context into recursively
+included temporary buffers.
+
+Rationale: A global mode matches Org's global export integration points.
+Deferring transformation until export preserves editing buffers, and advising
+the native expansion boundary lets Org retain its established INCLUDE
+semantics."
   :global t
   :group 'org-roam-include
   :lighter " ORI"
