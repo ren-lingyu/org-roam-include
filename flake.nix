@@ -1,6 +1,6 @@
 {
 
-  description = "Include Org-roam nodes during Org export";
+  description = "Emacs package: org-roam-include";
 
   inputs = {
     nixpkgs = {
