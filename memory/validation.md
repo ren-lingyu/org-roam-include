@@ -1,33 +1,37 @@
-# Comparison evidence and target limits
+# Base adapter validation
 
-Source: archived session 019f8056-9275-7e43-8fa2-651004902291, clean-load
-experiments and org-transclusion capability comparison. No experiments were
-rerun during memory reconstruction; precise original Git snapshots are unknown.
+Source: archived session 019f8056-9275-7e43-8fa2-651004902291, temporary
+compiler tests and clean-dev integration assessment on 2026-07-21. No project
+tests were rerun for memory reconstruction.
 
-The recorded clean Emacs loading attempts initially failed because manually
-assembled load-paths omitted transitive dependencies. Loading dependencies via
-straight bootstrap and straight-use-package subsequently succeeded. This validates
-that historical dependency-loading route, not every export path in the prototype.
+## Recorded compiler tests
 
-## Observations in the tested org-transclusion environment
+The archived runs reported passing file-node whole-file compilation, headline
+FILE::LINE formatting, unchanged raw-tail spacing and ordering, original keyword
+indentation, replacement mount semantics, COMMENT exclusion and narrowed scans.
+Additional coverage preserved one or multiple affiliated keywords and ignored
+pseudo-keywords/headlines inside source, example and comment blocks. Headline-node
+mounts and file-outline projection without a real heading correctly failed.
 
-- :only-contents with :level removed more heading structure than the requested
-  mount semantics; :no-first-heading with automatic :level was closer.
-- Default property filtering removed source-root drawer/CUSTOM_ID while retaining
-  the local CUSTOM_ID in the tested case.
-- File-node exclusion of keyword and property-drawer elements removed document
-  metadata while preserving affiliated NAME/CAPTION keywords in the examples.
-- :expand-links resolved relative file links against the source directory.
-- A narrowed add-all invocation avoided invalid IDs outside the restriction.
+Testing exposed regexp match-data corruption during COMMENT checking, repaired
+with save-match-data. Org AST collection and :post-affiliated then addressed
+literal contexts and affiliated prefix preservation. The final temporary test
+run reported a clean tracked worktree; the subsequent dev review also recorded
+empty staged/unstaged diffs and identified the exact tip under inspection.
 
-The assistant recommended further evaluation of an org-transclusion wrapper.
-The user instead adopted the narrower independent adapter contract. Do not
-confuse that recommendation with an adopted replacement decision.
+These tests validate compiler behavior, not successful native expansion of
+FILE::LINE or recursive ROAM_INCLUDE. Original experiments mostly preceded
+commits or operated on working trees; the source-review parent is not a blanket
+provenance claim for them.
 
-## What remains unproven
+## Adopted scope from the comparison
 
-The comparison did not establish complete LaTeX/batch-export equivalence, all
-COMMENT behavior or every descendant-property filtering boundary. It did not
-prove the proposed adapter's FILE::LINE search syntax. Earlier prototype checks
-were static. Implement and test the base/mount compiler, literal contexts,
-affiliated keywords and restriction handling before claiming those contracts.
+In the tested org-transclusion environment, :no-first-heading with automatic
+:level was closer to mount requirements than :only-contents; metadata exclusions,
+relative-link expansion and narrowed processing also worked in examples.
+Nevertheless, the user chose a small export-only adapter with Org-roam DB
+location authority. The comparison did not establish complete backend equivalence
+or imply a package-replacement decision.
+
+Next probes should verify recursive native entry points, propagation across
+Org-created buffers, inactive ordinary-buffer behavior and advice cleanup.

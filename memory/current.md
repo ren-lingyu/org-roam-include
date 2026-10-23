@@ -1,38 +1,45 @@
 # Project memory
 
-This retrospective snapshot captures the decision to continue independent,
-strictly bounded development after the org-transclusion comparison on 2026-07-21.
-Read [design.md](design.md) for the adopted target and [validation.md](validation.md)
-for the experimental evidence. The target is not yet fully implemented here.
+This retrospective snapshot captures the implemented base adapter on dev before
+main integration, reviewed on 2026-07-21. Read [design.md](design.md) and
+[validation.md](validation.md) for the contract and limits.
 
-## Objective and decision
+## Objective and implemented state
 
-Keep org-roam-include as an export-only adapter from stable Org-roam identity to
-native INCLUDE locations. The user explicitly chose this direction after the
-comparison rather than adopting the assistant recommendation to prioritize an
-org-transclusion wrapper. Do not build another transclusion engine.
+The export-only adapter compiles file-node headline mounts to base ROAM_INCLUDE
+keywords, then lowers those keywords to native INCLUDE. Saved files and the
+Org-roam database remain authoritative. Native arguments are preserved verbatim.
+File-outline projection is explicit; general metadata filtering has been removed.
 
-The new target separates a base keyword with untouched native arguments, file
-outline projection, and a convenience replacement mount restricted to file
-nodes. Remove the prototype metadata whitelist instead of making it more
-comprehensive. Database authority and saved-file semantics remain deliberate.
+The compiler now uses Org AST elements for real keywords and headings, rather
+than matching block-contained examples. Actual keyword positions prefer
+:post-affiliated, preserving NAME/CAPTION prefixes. Local surface parsing uses rx;
+family-based helper naming separates keyword, mount, node, outline and INCLUDE
+responsibilities. Keyword and property names are internal constants, not premature
+user options.
 
-## Next action
+The inspected dev worktree was clean. Its changes were judged coherent for
+integration into main, but no staged changes existed during that review. This
+source-review context is associated with the exact inspected project snapshot.
 
-Implement the narrowed contract in design.md and validate the two-stage compiler.
-In particular, test native headline-location assumptions rather than treating
-formatted keyword output as an export success. Recursive ROAM_INCLUDE remains
-outside the initial implementation; ordinary native INCLUDE recursion stays Org's
-responsibility.
+## Limits and next action
 
-## Evidence and remaining coverage
+Temporary tests cover compilation output and structural boundaries. The headline
+form FILE::LINE is still assumed to be a native location; successful formatting
+is not proof that Org can expand it. Recursive ROAM_INCLUDE remains deferred.
 
-Source: Codex archived session 019f8056-9275-7e43-8fa2-651004902291,
-org-transclusion comparison, the user prompt beginning “我重新思考” with the
-development guidance, subsequent boundary discussion and README rewrite.
-The preceding prototype is retained in first-parent memory history.
+Integrate the coherent adapter into main, then probe Org's recursive entry points
+and protect mode activation with runtime capability checks before enabling a
+recursive design. Do not duplicate native argument or file-reading semantics.
 
-Comparison results belong to the tested historical environment, not a guarantee
-about every org-transclusion version. Exact clean package commits for the original
-comparison and prototype work are unknown. Later implementation and test-system
-intervals are still to be reconstructed.
+## Evidence
+
+Source: archived session 019f8056-9275-7e43-8fa2-651004902291, narrowed
+implementation, AST/affiliated-keyword fixes, temporary tests and the clean-dev
+merge assessment. The preceding comparison explains why this is an independent
+adapter rather than a transclusion wrapper.
+
+The project-parent association records the clean source inspection. Original
+working-tree experiments do not gain exact provenance from that association.
+Subsequent main integration, recursion, release and Nix intervals remain pending
+historical reconstruction.

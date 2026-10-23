@@ -13,8 +13,9 @@ bounds and structural headline alignment. Do not search by title or CUSTOM_ID,
 rescan IDs to repair positions, or synchronize the database during export.
 
 File nodes lower to a whole-file absolute path, without metadata stripping.
-The proposed headline form is FILE::LINE, without automatic :only-contents t.
-This is a target assumption awaiting actual native expansion testing.
+The implemented headline form is FILE::LINE, without automatic :only-contents t.
+Its actual native expansion still needs confirmation; compiler output tests alone
+cannot establish that the location is valid.
 
 ## Projection and mount policy
 
@@ -32,6 +33,21 @@ Compile mounts before keywords so discarded descendants and their invalid IDs
 are not resolved. Skip nested mounts replaced by an ancestor. Respect narrowing
 and COMMENT subtrees. Recognize keyword case insensitively; preserve raw arguments.
 Quoted locations must obey Org syntax rather than Elisp string-literal rules.
+
+## Structural compiler
+
+Collect actual keyword elements through org-element-parse-buffer and
+org-element-map. Use :post-affiliated, falling back to :begin, to replace the
+wrapper line without consuming affiliated keywords. Process positions from the
+end to avoid invalidating earlier offsets and preserve the original indentation.
+Find file-outline starts through actual headline elements, excluding literal
+headlines inside source/example blocks. Keep regexp match data protected around
+COMMENT checks. A successful earlier text scan did not cover these structural
+hazards.
+
+Use internal constants for keyword/property spelling and role-based helper
+families rather than exposing unstable knobs. The public mode remains global
+and export-only. No custom recursive engine has been added.
 
 ## Reasons and non-goals
 
