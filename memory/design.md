@@ -94,3 +94,19 @@ attachment repair, automatic DB synchronization or independent INCLUDE parser is
 part of this contract. Mixed recursive native/ROAM INCLUDE is supported through
 native expansion rather than a separate engine. Package-owned validation
 infrastructure remains separate from Org-roam configuration validation.
+
+## Package and regression-test boundary
+
+The package remains a single Emacs Lisp library; the 0.1.0 header is release
+preparation, not evidence of a published tag. README provides installation and
+configuration using require plus the global minor mode. Testing is explicit and
+separate from require or mode activation.
+
+The standalone ERT file is tests/org-roam-include-test.el at this historical
+boundary. Saved-source fixtures use make-temp-file with temporary-file-directory,
+so tests do write temporary disk files. A temporary buffer
+alone cannot represent native INCLUDE file-reading behavior faithfully.
+
+Handwritten regexps use rx; internal constants centralize syntax spelling and
+helper names reflect their keyword/mount/node/outline responsibilities. These
+coding conventions support the package without adding user-facing configuration.

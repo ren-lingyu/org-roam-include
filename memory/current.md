@@ -1,40 +1,43 @@
 # Project memory
 
-This retrospective snapshot captures recursive normalization integrated with the
-main headline fix and retested after conflict resolution. Read
-[design.md](design.md) for contracts and [validation.md](validation.md) for scope.
+This retrospective snapshot captures 0.1.0 preparation and the historical Emacs
+30 validation completed on 2026-07-27. Read [design.md](design.md) for behavior and
+[validation.md](validation.md) for exact coverage and limitations.
 
-## Implemented state and reasons
+## State
 
-The export-only adapter now normalizes ROAM_INCLUDE at every native INCLUDE
-expander invocation. A preprocessing hook marks the export copy; thin around
-advice carries dynamic recursive context into Org-created child buffers, compiles
-mounts before keywords and calls the native expander with its original arguments.
+The core export-only adapter, private headline search and mixed native/ROAM
+recursion are implemented. README and Commentary were aligned with that behavior,
+including the distinction between ordinary file targets and private headline
+locations, and the fact that Org owns cycle detection rather than a separate
+depth guard. Installation examples and include-target documentation exist.
 
-Private headline search remains FILE::org-roam-include-line:N. Its handler is
-bound dynamically during native expansion, replacing the isolated fix's broader
-mode-lifecycle registration. Unmarked ordinary buffers remain inert. Mode disable
-removes hook/advice integration. Old package-specific maximum-depth and stack
-scaffolding was removed because tested native recursion and cycle detection
-cover the intended behavior.
+Representative temporary tests were promoted to tests/org-roam-include-test.el,
+a standalone eight-test ERT suite. The package header was changed to 0.1.0.
+Fixtures use make-temp-file and temporary-file-directory; saved-file behavior
+requires real temporary disk files rather than exclusively temporary buffers.
+Tests are separate developer tools, not code executed by normal package loading.
 
-The merge resolution retained main's headline repair together with dev's
-recursive architecture. Repeated headline and recursive tests passed on the
-resolved working-tree candidate before explicit staging. This is not a claim
-that a nearby clean project commit was the original test snapshot.
+The recorded release-preparation ERT run passed eight tests. A later Nix-provided
+Emacs 30.2 environment with real dependency packages also passed ERT and
+package-lint. The original ERT file still contains dependency stand-ins: putting
+real dependencies in the environment does not by itself prove tests use their
+real implementation. Version declarations and release readiness are not proof of
+a published tag or release.
 
-## Next action
+## Next action and evidence limits
 
-Align README and Commentary with the integrated behavior, then promote useful
-temporary tests into a standalone regression suite. Separate implementation,
-verification and any later version/tag/release actions. Keep headline-node
-property mounts undefined rather than expanding policy for release convenience.
+A reproducible flake test environment is being investigated in an overlapping
+conversation. Complete that test-system work with an explicit distinction between
+source linting, packaged behavior and real Org-roam dependencies. Do not re-add
+installation or ERT as nonexistent work, and do not publish a release by inference.
 
-## Evidence and remaining coverage
+Source: archived session 019f8056-9275-7e43-8fa2-651004902291, documentation,
+standalone ERT, version preparation and final Emacs 30 runs. Its complete horizon
+is now represented across the reconstructed states. Repeated aborted requests,
+small edits and commit-message revisions were examined, not promoted to separate
+knowledge states. Original working-tree test provenance remains uncertain.
 
-Source: archived session 019f8056-9275-7e43-8fa2-651004902291, squash conflict
-resolution, handler integration and repeated headline/recursive test runs.
-Prior first-parent snapshots preserve the standalone fix and earlier assumptions.
-Release preparation, Emacs compatibility, Nix testing and runner migration remain
-to be reconstructed. No original clean project snapshot is inferred for this
-staged integration candidate.
+The flake conversation began before this session's final validation; session
+start times do not establish the order of completed knowledge states. Nix testing,
+docstring work and runner migration remain to be reconstructed.

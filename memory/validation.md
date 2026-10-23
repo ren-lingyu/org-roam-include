@@ -1,37 +1,42 @@
-# Recursive integration validation
+# Release-preparation evidence
 
-Source: archived session 019f8056-9275-7e43-8fa2-651004902291, private-search
-experiments, main/dev conflict resolution and the repeated tests before staging
-the resolved candidate. No tests were rerun during memory reconstruction.
+## Recorded runs
 
-## Historical observations
+Source: archived session 019f8056-9275-7e43-8fa2-651004902291, standalone ERT
+and Emacs 30 verification. No build or test was rerun for this reconstruction.
 
-- Bare FILE::LINE failed in actual native expansion despite earlier compiler
-  output tests. Private numeric search repaired headline selection without
-  changing native :only-contents or :lines interpretation.
-- Recursive ROAM -> ROAM, native -> ROAM, and ROAM -> native -> ROAM passed.
-  Included content with file-node property mounts also expanded recursively.
-- Outer :lines selection occurred before inner wrapper resolution. Invalid IDs
-  outside the selected range did not fail the tested expansion.
-- Headline :only-contents still allowed recursive inner wrappers. Whole-file,
-  direct-headline and indirect-headline cycles were rejected by native Org.
-- COMMENT subtrees and source-block literal wrappers were excluded. Unmarked
-  ordinary buffers were inert, and mode disable removed hook/advice integration.
-- Main's isolated headline tests and the recursive suite both passed after the
-  squash conflict was resolved, before the candidate was explicitly staged.
+The release-preparation batch ERT command reported eight tests and eight expected
+results after the package version was changed to 0.1.0. The separate later Nix
+run used nixos-25.05's emacs30; its output identifies Emacs 30.2 and Org 9.7.38.
+It reported eight expected ERT results and no unexpected results. Package-lint
+also exited zero with empty captured diagnostics in that environment.
 
-The resolution kept main's private-search fix and dev's export-marker/dynamic
-recursive architecture. Passing dev experiments alone were not treated as main
-verification; the integration was tested again.
+The earlier attempt against the unstable package set encountered an upstream
+Org fixed-output hash mismatch. Falling back to the stable package set allowed
+the compatibility experiment to finish. This is an environment-selection result,
+not an adapter correctness fix or a guarantee for every Emacs 30/Org combination.
 
-## Limits and next verification
+## Regression coverage and dependency limit
 
-These were temporary scripts and saved-file fixtures, not yet a maintained ERT
-suite. No complete backend compatibility matrix or arbitrary native INCLUDE
-behavior is established. Setup failure behavior was tested separately through
-simulated missing interfaces and warning-only disablement.
+The standalone suite covers private headline search, mixed recursion, property
+mount recursion, outer selection before recursion, COMMENT/literal boundaries,
+activation boundaries, native cycle detection and mode cleanup. Source fixtures
+are real temporary files. Package tests are not run by normal package loading.
 
-Original experimental and resolved working-tree states do not have unambiguous
-clean-commit provenance. Equivalent main commits or later commits cannot supply
-it retrospectively. Promote representative boundaries into regression tests and
-align package documentation before release preparation.
+The original ERT suite unconditionally defines a stand-in Org-roam node structure
+and resolver and provides the org-roam feature before loading the package source.
+Installing real dependencies in the environment does not remove those stand-ins.
+This suite therefore does not establish real Org-roam integration coverage; the
+later dependency migration must change the test file itself.
+
+Earlier temporary probes additionally exercised setup failure reports and
+warning-only disablement. Their successful experiments and the maintained suite
+have distinct scopes; neither establishes all export backends.
+
+## Provenance and publication
+
+The final original session still reported a modified source file. Original exact
+clean commits for the working-tree tests are not established, so neither the
+version commit nor the suite-introduction commit is attached speculatively.
+The header version does not establish a Git tag or release. Those publication
+states have not been independently verified.
