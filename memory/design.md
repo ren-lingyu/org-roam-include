@@ -136,3 +136,24 @@ inputs and do not run when users require the library or enable the mode.
 
 The temporary Nixpkgs pin addresses an upstream Org hash mismatch pending channel
 availability, not an architectural preference for permanent commit pinning.
+
+## Symbol documentation convention
+
+The user maintains both this package and org-roam-organize and requested a shared
+style that allows design context to be recovered from symbols themselves.
+Begin with a concise Emacs-style behavior summary, then explain parameter and
+return contracts, relevant side effects and errors. Use uppercase parameter names
+and Emacs symbol quoting in docstrings. Scale detail to responsibility rather
+than requiring every simple accessor to contain every possible section.
+
+For complex symbols, Implementation notes: describes collaboration and boundaries;
+Rationale: explains why that responsibility or approach exists. Especially preserve
+the division between DB position authority, native INCLUDE semantics, export-only
+normalization and replacement mounts. Do not embed temporary progress or commit
+narration in source documentation.
+
+The local untracked DOCSTRING.md described this convention but is not a required
+input for future work. Documentation-only editing can still break Lisp syntax:
+function docstrings precede executable bodies, while a constant/variable
+docstring may be the final form argument. Static whitespace checks do not prove
+that those forms remain syntactically or semantically correct.

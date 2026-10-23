@@ -1,46 +1,41 @@
 # Project memory
 
-This retrospective snapshot captures the completed initial flake test-system
-migration and README alignment. Read [design.md](design.md) for package and test
-contracts and [validation.md](validation.md) for evidence limits.
+This retrospective snapshot captures the completed docstring work and repair of
+its syntax regression at the end of the July flake conversation. Read
+[design.md](design.md) for contracts and [validation.md](validation.md) for evidence.
 
-## State and adopted structure
+## State and conclusions
 
-The 0.1.0 export-only adapter retains private headline search, native recursive
-normalization and file-node replacement mounts. Testing now has a flake-parts
-entry point, package build, ERT and package-lint checks plus a matching development
-shell. The purpose of introducing the flake was reproducible testing; packaging
-and the development shell support that goal.
+The 0.1.0 adapter and flake test boundary remain as established: saved-file/DB
+identity resolution, private headline search, native recursive normalization,
+file-node replacement mounts, real-dependency packaged ERT and source linting.
 
-An explicit fileset creates a source tree containing the primary library, README
-and license. packages.default builds the library with compilation warnings as
-errors. The combined Emacs environment includes that package, its real Org and
-Org-roam dependencies and package-lint. ERT loads the installed package and real
-Org-roam; only node lookup is locally replaced to avoid a live database.
-Package-lint checks the filtered source tree.
+The user wants symbol documentation to recover usage, contracts, implementation
+and design reasons, scaled to each symbol. Source docstrings now explain
+parameters, return values, errors and side effects where relevant, with
+Implementation notes: and Rationale: sections for non-obvious responsibilities.
+An ignored local DOCSTRING.md was a working guide; essential conventions are
+recorded in design.md so this memory does not depend on that temporary input.
 
-The suite moved to tests/ert/ert.el; tests/default.nix coordinates separate ERT
-and lint derivations. Test Nix code receives its external inputs and does not
-reach into the parent directory or assume filenames outside tests. Native
-arguments, source identity and built-package loading have distinct owners.
+The first documentation edit accidentally closed function definitions after
+docstrings. Compilation-as-error surfaced a top-level unused format result;
+34 defun/minor-mode docstring endings were repaired without changing the required
+closing parentheses of constants or variables. The final staged change represents
+documentation enrichment with the accidental regression repaired, not a new
+runtime behavior feature.
 
-A temporary Nixpkgs pin was adopted to obtain an upstream Org hash-mismatch fix
-not yet available on nixpkgs-unstable. Earlier override experiments are not a
-permanent package design requirement. README now documents nix flake check and
-temporary saved-file fixtures instead of the retired standalone test location.
+The user supplied a successful nix flake check result after repair. It reported
+zero checks needing execution, so record cached-result acceptance and successful
+check completion rather than a fresh ERT/lint run. Original exact working-tree
+provenance is not established.
 
-## Next action and evidence
+## Next action and coverage
 
-The next selected work is richer symbol-level documentation of contracts,
-implementation and rationale. Keep the actual test dependency boundary explicit:
-real Org-roam types do not mean a real database is exercised.
+No further implementation change was adopted at this source boundary. Continue
+from the documented adapter/test system, and verify future claims against the
+actual source. The documentation regression is not an open repair task.
 
-Source: archived session 019f9eb1-9eac-7ef3-bd38-d2a55514d6a6, from the opening
-flake discussion through fileset/parameter decisions, real-dependency migration
-and testing documentation. The user reported a passing test state during setup;
-static syntax checks and staged review do not prove every later revision was rerun.
-Original clean project provenance for working-tree runs remains uncertain.
-
-The earlier session's final Emacs 30 verification overlaps the start of this
-source; the order here follows completed knowledge states, not session starts.
-Docstring correction and runner migration remain to be reconstructed.
+Archived session 019f9eb1-9eac-7ef3-bd38-d2a55514d6a6 has now been covered from
+initial flake discussions through docstring repair and final staged review.
+The overlapping earlier session is also represented. The later runner migration
+and supplementary handoff still remain to be integrated into memory.
