@@ -134,8 +134,9 @@ only for node lookup against fixture records. It does not access the live Org-ro
 database. Lint enumerates the filtered source tree. Tests remain development
 inputs and do not run when users require the library or enable the mode.
 
-The temporary Nixpkgs pin addresses an upstream Org hash mismatch pending channel
-availability, not an architectural preference for permanent commit pinning.
+The earlier temporary Nixpkgs pin addressed an upstream Org hash mismatch pending
+channel availability, not an architectural preference for permanent commit pinning.
+The later configuration selects nixpkgs-unstable again.
 
 ## Symbol documentation convention
 
@@ -157,3 +158,26 @@ input for future work. Documentation-only editing can still break Lisp syntax:
 function docstrings precede executable bodies, while a constant/variable
 docstring may be the final form argument. Static whitespace checks do not prove
 that those forms remain syntactically or semantically correct.
+
+## Generated Guile runners
+
+Both check definitions generate executable runners with pkgs.replaceVarsWith from
+adjacent run.scm files. The user explicitly prefers .scm without an .in suffix.
+Scheme was chosen because the maintainer finds shell list construction and quoting
+hard to read; reducing interpreter closure size was not worth that maintenance
+cost. Keep Guile within checks rather than adding it to the library runtime.
+
+Inject interpreter and Emacs executables plus context-bearing strings for source
+or test inputs. The historical missing-source failure was corrected with
+testFile = "${./ert.el}" and source = "${source}" in replacements, without
+redundant top-level input attributes. Do not replace fileset.toSource with toList:
+the built package and lint load-path still need a source directory.
+
+Runners disable Guile automatic compilation, prepare HOME below the build TMPDIR
+before starting Emacs, and use system* with explicit argument lists. ERT invokes
+quick/batch Emacs with ert.el and ert-run-tests-batch-and-exit; lint recursively
+collects .el files, requires a nonempty list and invokes package-lint. Nonzero
+child status fails the runner; successful completion creates the derivation output.
+The actual implementation may normalize failure to exit 1 rather than preserve
+the exact child exit number. Nix remains responsible for dependencies and static
+substitution; runtime environment setup belongs to the runner.
