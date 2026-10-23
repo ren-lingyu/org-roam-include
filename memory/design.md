@@ -13,9 +13,16 @@ bounds and structural headline alignment. Do not search by title or CUSTOM_ID,
 rescan IDs to repair positions, or synchronize the database during export.
 
 File nodes lower to a whole-file absolute path, without metadata stripping.
-The implemented headline form is FILE::LINE, without automatic :only-contents t.
-Its actual native expansion still needs confirmation; compiler output tests alone
-cannot establish that the location is valid.
+Headline nodes lower to FILE::org-roam-include-line:N. The private numeric suffix
+is handled through org-execute-file-search-functions, moves to the physical line
+and checks headline alignment. Bare FILE::LINE was tested and rejected because
+Org treated it as fuzzy search. Do not reinstate it or fall back to title lookup.
+
+In the isolated main repair, mode activation registers the private handler and
+mode disable/setup failure removes it. Recursive integration is intended to scope
+this handler dynamically to native expansion instead of ordinary file searches.
+The adapter does not add :only-contents t automatically; native arguments select
+root removal and range semantics.
 
 ## Projection and mount policy
 

@@ -1,43 +1,44 @@
 # Project memory
 
-This retrospective snapshot captures main integration of the base adapter and the
-setup gate before recursive normalization. Read [design.md](design.md) for the
-implemented contract and [validation.md](validation.md) for historical evidence.
+This retrospective snapshot captures the isolated headline-location repair on
+main before recursive normalization is integrated. Read [design.md](design.md)
+for the current contract and [validation.md](validation.md) for the experiments.
 
-## State and decision
+## Consequential finding and repair
 
-The coherent export-only adapter has been integrated for main use. It preserves
-the two-stage mount/keyword pipeline, raw native arguments, explicit file-outline
-projection and database authority. Main-facing documentation describes package
-behavior rather than a development diary. The dev line and main history are not
-interchangeable project snapshots after squash integration.
+Native Org INCLUDE does not treat the bare numeric suffix in FILE::LINE as the
+intended headline line search in the tested environment. It reaches fuzzy search
+and fails. Earlier compiler-output tests therefore did not establish headline
+export correctness.
 
-Capability probes support using native INCLUDE recursion with a thin advice.
-Mode activation is now protected by internal variable and runtime capability
-checks, combined in org-roam-include-check-setup. Failure produces a complete
-warning report and leaves the mode disabled instead of aborting Emacs startup.
-Keeping this gate in the single package file avoids needless compatibility-module
-loading complexity. An empty package-owned variable list is valid infrastructure,
-not a reason to delete validation.
+Headline nodes now use FILE::org-roam-include-line:N. A private search handler
+navigates to the recorded physical line and validates a heading, preserving the
+Org-roam DB identity/location boundary without title search or a custom selection
+parser. Org still interprets :only-contents and relative :lines semantics.
 
-## Limits and next action
+A recursive dev implementation was tested, but the user deliberately separated
+the headline bug fix onto main before integrating recursion. In this isolated
+repair, mode lifecycle registers/removes the handler; the later intended dynamic
+binding is not the main implementation at this boundary. Setup and base compiler
+behavior remain in place. The old depth/stack declarations have not yet been
+removed as part of recursive integration.
 
-The setup failure path has been exercised, but recursive ROAM_INCLUDE is not yet
-integrated. A buffer-local export marker cannot propagate into Org-created child
-buffers by itself. Use dynamic recursive context alongside the marker when
-implementing advice; keep ordinary unmarked buffers inert.
+## Next action
 
-Test recursive file/headline cases and native selection boundaries, especially
-whether FILE::LINE actually works inside Org's expander. Do not add a custom
-cycle stack or depth guard before testing native behavior.
+Integrate recursive normalization while preserving the standalone headline fix.
+Resolve main/dev differences deliberately, use dynamic search binding within the
+native expander advice, then repeat headline and recursion boundary tests. Do not
+replace private search with absolute subtree line ranges: that would require
+interpreting native selection arguments inside the adapter.
 
-## Evidence and reconstruction status
+## Evidence and limits
 
-Source: archived session 019f8056-9275-7e43-8fa2-651004902291, main squash
-preparation, recursive API probes, setup implementation and setup-check tests.
-Exact clean commits for all of these experiments are not established: similar
-setup subjects occur in both dev and main histories. No project parent is inferred
-from equivalent content or nearby main commits.
+Source: archived session 019f8056-9275-7e43-8fa2-651004902291, recursive
+boundary probes exposing numeric search failure, private-search dev experiments,
+and the user's request to reapply only the headline repair on main with tests.
+The tests and staged repair do not identify a single clean original commit.
+No main or dev commit is guessed as their project parent.
 
-Earlier prototype and scope decisions are represented in first-parent memory.
-Recursion, release, Nix and runner intervals remain to be reconstructed.
+Prototype, scope, base implementation and setup states are represented in
+first-parent history. Recursive integration and later release/test-system work
+remain to be reconstructed.

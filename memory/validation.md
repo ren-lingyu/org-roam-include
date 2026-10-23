@@ -1,38 +1,38 @@
-# Setup and recursive API evidence
+# Headline repair and recursion findings
 
-Source: archived session 019f8056-9275-7e43-8fa2-651004902291, recursive API
-probes and setup-check tests following base-adapter integration. No project tests
-were rerun during reconstruction; original experimental Git snapshots are not
-unambiguously identified for this phase.
+Source: archived session 019f8056-9275-7e43-8fa2-651004902291, recursive
+boundary probes and standalone main headline repair. These are historical
+observations, not tests rerun during reconstruction. Exact original clean commits
+for the experimental and staged states are not established.
 
-## Recorded API probes
+## Failure that changed the implementation
 
-The expander existed with optional included, dir, footnotes, includer-file and
-expand-env arguments. Export preprocessing hooks and advice add/remove/query
-interfaces existed. Native recursion re-entered the same function symbol.
-A probe advice normalizing the current buffer before the original expander
-successfully handled native INCLUDE containing ROAM_INCLUDE.
+Whole-file mixed recursion worked in initial advice experiments, but headline
+FILE::LINE expansion failed with a fuzzy-expression error. Direct probes also
+showed that a numeric suffix was not interpreted as the intended line location;
+CUSTOM_ID and title searches had different semantics. Compiler formatting tests
+had missed this failure.
 
-Buffer-local state did not automatically enter child buffers; dynamic recursive
-state did. Unmarked ordinary buffers remained inert, and advice was removable.
-These are evidence for the integration approach, not proof of the complete
-recursive package or its headline locations.
+The chosen private prefix uses the recorded database point to derive a physical
+line, leaving native selection and :only-contents to Org. Falling back to absolute
+subtree ranges would have forced the adapter to interpret native argument
+combinations and was rejected.
 
-## Recorded setup tests
+## Recorded repair tests
 
-The setup report combined variable and capability checks, included the native
-expander requirement and was exposed by the public diagnostic command. Simulated
-missing capabilities produced a failed report; enabling the mode kept it off and
-used display-warning without raising an error. The recorded test completion
-reported no tracked working-tree changes.
+The private-search dev tests covered gated handler behavior, headline includes,
+headline :only-contents, mixed recursive forms and native cycle detection.
+They validate that experimental dev state, not an already-integrated main feature.
 
-## Inherited limits
+After the user switched to main and requested the isolated repair, a separate
+run passed private location generation, headline/body/child expansion,
+:only-contents removal of the source root, and literal wrapper preservation in
+source blocks. The repair was then explicitly staged. No recursive advice was
+introduced by that standalone patch.
 
-Base compiler tests covered raw arguments, affiliated keywords, literal contexts,
-mount replacement, COMMENT and narrowing. They did not demonstrate end-to-end
-native expansion of FILE::LINE. The historical org-transclusion comparison
-informed scope rather than a replacement decision. Main squash integration does
-not retroactively identify the original dev experiment snapshots.
+Prior setup tests exercised combined diagnostics, failed capability reports,
+warning-only mode disablement and cleanup. Base structural compiler tests covered
+raw tails, affiliated prefixes, mounts, restrictions and literal contexts.
 
-Next test mixed recursion, property mounts, outer :lines selection and headline
-cycles before introducing package-specific depth or cycle machinery.
+Next repeat headline and recursive tests after main/dev integration. Preserve
+that distinction rather than transferring dev successes to untested main code.
