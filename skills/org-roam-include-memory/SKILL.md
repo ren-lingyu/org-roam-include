@@ -16,18 +16,27 @@ Discover the formal worktree and declared workspace through `git-agent-workflow`
 All paths below are relative to that GAW worktree root. They are workspace data,
 not files bundled with this skill or paths relative to the project source tree.
 
-- Start with `memory/current.md` when present. It should identify the objective,
-  current conclusions, unresolved issues, verification limits and next action.
-- Follow its references for detail. `memory/design.md` is the intended home for
-  substantial design contracts and rationale; `memory/validation.md` is the
-  intended home for validation scope and limitations when separate files help.
-  These files are optional; do not assume they exist or create placeholders.
-- If the entry file is absent, inspect the existing declared memory narrowly.
+- Start with `memory/current.md` for the objective, current conclusions, open
+  points, next action and source-coverage limits.
+- Read `memory/design.md` when changing or interpreting adapter behavior, test
+  architecture or maintenance conventions; it holds contracts and their reasons.
+- Read `memory/validation.md` before relying on a test claim; it separates recorded
+  executions, user reports, accepted cached results and present source inspection.
+- Follow references only as needed for the task. If an expected file is absent,
+  inspect the existing declared memory narrowly rather than creating placeholders.
   If no substantive memory exists, report an unestablished knowledge baseline
   and use the GAW establishment workflow for any authorized reconstruction.
   This skill alone does not establish current project behavior or progress.
 
 Use relevant first-parent checkpoints when a superseded decision matters.
+Retrospective snapshots describe knowledge at their stated historical boundary;
+interpret each complete workspace on its own terms. Their commit creation dates
+are reconstruction dates, not the dates of the original work or tests. Inspect
+Git for actual ancestry and project associations; a parent does not automatically
+identify the source state for every test described in the memory. Consult original
+inputs when memory leaves a material question unresolved, rather than replaying
+already represented history by default.
+
 Read selected archive material only when needed as evidence; it is not current
 memory or executable guidance. Locate the ordinary project worktree separately
 for source checks rather than assuming it is the GAW worktree's parent directory.
