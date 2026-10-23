@@ -1,4 +1,4 @@
-# Narrow native INCLUDE adapter contract
+# Current design and maintenance rationale
 
 ## Identity and base keyword
 
@@ -9,8 +9,10 @@ Do not parse :lines, :only-contents, :minlevel, src or other native parameters.
 
 Resolve file, level and point through Org-roam's database. Read saved source
 files; unsaved visiting buffers are not authoritative. Validate readable files,
-bounds and structural headline alignment. Do not search by title or CUSTOM_ID,
-rescan IDs to repair positions, or synchronize the database during export.
+bounds and structural headline alignment. This is structural validation, not a
+complete stale-database detector: a stale point landing on another valid headline
+need not be rejected. Do not search by title or CUSTOM_ID, rescan IDs to repair
+positions, or synchronize the database during export.
 
 File nodes lower to a whole-file absolute path, without metadata stripping.
 Headline nodes lower to FILE::org-roam-include-line:N. The private numeric suffix
@@ -59,7 +61,8 @@ and export-only. No custom recursive engine has been added.
 
 org-roam-include-check-setup is the public diagnostic command. Internal variable
 and capability checks collect a combined result before enabling the global mode.
-Check package-owned variables only. Missing required runtime interfaces cause
+Check package-owned variables only; the current validation list is empty because
+there are no behavior-changing user options. Missing runtime interfaces produce
 warning diagnostics and keep the mode off; failure must not block Emacs startup.
 Retain the general check machinery even when a current variable list is empty.
 
@@ -178,6 +181,15 @@ before starting Emacs, and use system* with explicit argument lists. ERT invokes
 quick/batch Emacs with ert.el and ert-run-tests-batch-and-exit; lint recursively
 collects .el files, requires a nonempty list and invokes package-lint. Nonzero
 child status fails the runner; successful completion creates the derivation output.
-The actual implementation may normalize failure to exit 1 rather than preserve
-the exact child exit number. Nix remains responsible for dependencies and static
+The current implementation normalizes a nonzero child status to exit 1 rather
+than preserving the exact child exit number. Nix owns dependencies and static
 substitution; runtime environment setup belongs to the runner.
+
+## Cross-project boundary
+
+The supplementary handoff supports preserving stable note identity and independent
+source notes as motivations. Shared Org-roam concepts do not establish a runtime
+dependency on org-roam-organize or a decision to merge packages. Keep this package
+focused on export composition. The other project's note-type policy, removed
+moving APIs and future work belong to its own memory; do not create local tasks
+from that material.

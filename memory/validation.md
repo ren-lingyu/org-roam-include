@@ -41,3 +41,37 @@ No project build, ERT or lint was rerun during reconstruction. Most original
 experiments used modified/staged states without exact clean-commit provenance.
 Do not attach equivalent main commits as substitutes. A version declaration is
 not evidence of a published tag or release.
+
+## Present source inspection and evidence quality
+
+The inspected current source has version 0.1.0, minimum requirements Emacs 30.1,
+Org 9.7 and Org-roam 2.0.0. The flake selects Emacs 31. README still states Emacs
+31.0 and omits the two run.scm files from its tree listing; these are documentation
+differences, not newly established runtime failures. Both Guile files, their Nix
+substitutions and real-dependency requires were read; no builders were executed.
+
+The cycle-test helper accepts several error texts, including Lisp nesting-limit
+exhaustion. Therefore a passing maintained cycle assertion alone is weaker than
+proof of a specific native cycle diagnostic. Historical probe reports describe
+native cycle rejection, but this is not an exhaustive guarantee for all inputs.
+Similarly, structural DB-position checks cannot detect every stale identity.
+
+The webpage handoff reports user practical successes and corrects stale assistant
+reviews; its preparation did not run local checks. Treat those as transferred
+reports and source-derived explanations, not independent new executions. Published
+tag/release status and current CI were not checked here.
+
+## GAW reconstruction verification
+
+Only memory files were written for the historical reconstruction. Every candidate
+was reviewed as a complete snapshot with the existing entry skill and unchanged
+GAW config; explicit staging and GAW checks preceded checkpoints. Memory content
+and checkpoint messages were screened for credentials, unnecessary personal
+information and machine-specific paths. Necessary session identifiers remain as
+evidence locators. Project-parent content screening is excluded under the user's
+explicit direction; graph associations still use exact observed snapshots.
+
+The present-state project parent means current source inspection. The earlier
+clean-dev association means its recorded source review, not all preceding test
+runs. Other original working-tree provenance remains uncertain. Recover actual
+parent relationships from Git rather than a parallel memory index.
