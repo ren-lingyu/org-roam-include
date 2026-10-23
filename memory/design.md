@@ -1,43 +1,48 @@
-# Prototype design
+# Narrow native INCLUDE adapter contract
 
-## Scope and integration
+## Identity and base keyword
 
-The source composition document uses a local headline with a ROAM_INCLUDE
-property holding an Org-roam node ID. The local headline supplies title,
-structure and ordering. Transform only Org's export working copy; preserve the
-source document. The global org-roam-include-mode installs export preprocessing.
-Variable validation concerns variables defined by this package, not Org-roam's
-configuration.
+Use #+ROAM_INCLUDE: NODE-ID RAW-TAIL. Interpret only the first non-whitespace
+token as an Org-roam ID; do not impose a UUID format. Preserve the remaining
+single-line text, including its leading whitespace, as native INCLUDE arguments.
+Do not parse :lines, :only-contents, :minlevel, src or other native parameters.
 
-Native INCLUDE should own file reading, selection, relative-link behavior,
-footnotes and export integration. Directly copying subtree text was considered
-simpler, but would require recreating path-sensitive native behavior. The first
-implementation deliberately postpones recursive ROAM_INCLUDE support.
+Resolve file, level and point through Org-roam's database. Read saved source
+files; unsaved visiting buffers are not authoritative. Validate readable files,
+bounds and structural headline alignment. Do not search by title or CUSTOM_ID,
+rescan IDs to repair positions, or synchronize the database during export.
 
-## Prototype at this boundary
+File nodes lower to a whole-file absolute path, without metadata stripping.
+The proposed headline form is FILE::LINE, without automatic :only-contents t.
+This is a target assumption awaiting actual native expansion testing.
 
-- Resolve IDs through Org-roam's recorded file, point and level. Validate basic
-  structure and readable saved files; do not rescan IDs or synchronize the DB.
-- Headline sources currently generate FILE::LINE with :only-contents t. This is
-  an unverified native-search assumption, not a demonstrated export contract.
-- File sources currently use an open-ended :lines range after a file-level
-  drawer and whitelisted document metadata. No explicit :minlevel is generated;
-  induced heading level is delegated to Org and still needs validation.
-- Replacement mounts retain the local heading and other properties while
-  replacing local body and descendants. Nested mounts discarded by an outer
-  replacement are not resolved first. Respect narrowing and COMMENT exclusion.
-- Interpret saved source files, using logical expanded absolute paths rather
-  than forcing symlink canonicalization.
+## Projection and mount policy
 
-## Reasons for earlier revisions
+File-outline projection starts at the first real headline and includes the final
+headline's complete subtree through end of file, represented by :lines "N-".
+A file with no headline is an error, not an empty or whole-file fallback.
 
-Title-based lookup weakened stable identity through duplicate or changed titles.
-Explicit body line ranges avoided that ambiguity but grew custom projection
-semantics and required an excluded end line. Rescanning actual ID properties was
-briefly implemented, then removed to keep Org-roam's database authoritative.
-The current prototype delegates headline selection back to Org instead.
+A local headline's ROAM_INCLUDE property may target only a file node. Preserve
+the local heading and other properties; remove the controlling property, local
+body and descendants in the export copy and insert the file-outline wrapper.
+Headline-node property mounts have multiple plausible meanings and are deliberately
+undefined. Use the base keyword and explicit native arguments for headline nodes.
 
-Metadata filtering, node identity, native arguments and mount projection need
-clearer boundaries before expansion of this design. Unused link-rewriting
-configuration was removed rather than exposed as a reserved option. Handwritten
-regular expressions use rx in accordance with the user's coding preference.
+Compile mounts before keywords so discarded descendants and their invalid IDs
+are not resolved. Skip nested mounts replaced by an ancestor. Respect narrowing
+and COMMENT subtrees. Recognize keyword case insensitively; preserve raw arguments.
+Quoted locations must obey Org syntax rather than Elisp string-literal rules.
+
+## Reasons and non-goals
+
+Org should own selection, levels, recursion, paths, links and footnotes. The
+comparison showed viable transclusion features, but the adopted goal remains a
+small export-only identity adapter with Org-roam DB authority. Replacing metadata
+whitelists with explicit outline projection makes the high-level policy narrow
+without redefining whole-file INCLUDE.
+
+No editing preview, live transclusion, property inheritance, ID/CUSTOM_ID migration,
+attachment repair, automatic DB synchronization or independent INCLUDE parser is
+planned for this initial contract. Recursive ROAM_INCLUDE is deferred rather than
+claimed complete. Package-owned validation infrastructure remains separate from
+Org-roam configuration validation.

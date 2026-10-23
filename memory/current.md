@@ -1,40 +1,38 @@
 # Project memory
 
-This is a retrospective snapshot of the export-only prototype review boundary
-on 2026-07-21. It describes knowledge at that boundary, not today's source tree.
-Read [design.md](design.md) for contracts and [validation.md](validation.md) for
-evidence limits.
+This retrospective snapshot captures the decision to continue independent,
+strictly bounded development after the org-transclusion comparison on 2026-07-21.
+Read [design.md](design.md) for the adopted target and [validation.md](validation.md)
+for the experimental evidence. The target is not yet fully implemented here.
 
-## Objective and state
+## Objective and decision
 
-Compose Org documents using stable Org-roam node IDs while preserving real local
-headlines for outline navigation. Only export output is in scope: editing-time
-previews, live insertion and navigation enhancements are not required.
+Keep org-roam-include as an export-only adapter from stable Org-roam identity to
+native INCLUDE locations. The user explicitly chose this direction after the
+comparison rather than adopting the assistant recommendation to prioritize an
+org-transclusion wrapper. Do not build another transclusion engine.
 
-The implementation lives in an independent package so experimental development
-does not block maintenance of the user's Emacs configuration. The prototype has
-package metadata, a global minor mode, package-owned variable checks and an
-export-copy preprocessing hook. Native INCLUDE delegation has replaced the
-initial direct-subtree-copy proposal.
+The new target separates a base keyword with untouched native arguments, file
+outline projection, and a convenience replacement mount restricted to file
+nodes. Remove the prototype metadata whitelist instead of making it more
+comprehensive. Database authority and saved-file semantics remain deliberate.
 
-The prototype has undergone several review-driven changes, but its native
-headline location and induced-level assumptions have not received export-level
-validation. Do not treat static review as a working-export result.
+## Next action
 
-## Decision and next action
+Implement the narrowed contract in design.md and validate the two-stage compiler.
+In particular, test native headline-location assumptions rather than treating
+formatted keyword output as an export success. Recursive ROAM_INCLUDE remains
+outside the initial implementation; ordinary native INCLUDE recursion stays Org's
+responsibility.
 
-Pause feature growth and compare org-transclusion against the actual composition
-requirements before building more metadata, linking or recursion machinery.
-Keep the prototype for comparison; no decision to replace it has been made.
-
-## Reconstruction evidence
+## Evidence and remaining coverage
 
 Source: Codex archived session 019f8056-9275-7e43-8fa2-651004902291,
-from the opening design request through prototype review and the decision to
-investigate org-transclusion. Its opening repository metadata concerns a different
-configuration repository and is not this package's project provenance.
+org-transclusion comparison, the user prompt beginning “我重新思考” with the
+development guidance, subsequent boundary discussion and README rewrite.
+The preceding prototype is retained in first-parent memory history.
 
-The complete three-session horizon was surveyed before selecting durable states.
-This snapshot covers the early prototype interval; later intervals remain to be
-represented by subsequent retrospective checkpoints. Exact original project
-commits for these working-tree edits are not established.
+Comparison results belong to the tested historical environment, not a guarantee
+about every org-transclusion version. Exact clean package commits for the original
+comparison and prototype work are unknown. Later implementation and test-system
+intervals are still to be reconstructed.

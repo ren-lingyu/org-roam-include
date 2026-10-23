@@ -1,24 +1,33 @@
-# Prototype evidence and limits
+# Comparison evidence and target limits
 
-The early archived work records static diff and whitespace checks after edits.
-It does not establish successful Emacs loading, byte compilation or end-to-end
-export for the final prototype at this boundary.
+Source: archived session 019f8056-9275-7e43-8fa2-651004902291, clean-load
+experiments and org-transclusion capability comparison. No experiments were
+rerun during memory reconstruction; precise original Git snapshots are unknown.
 
-Review exposed title ambiguity, end-line exclusion errors, premature nested-mount
-resolution and responsibility creep around metadata and identity. The recorded
-revisions explain the current prototype; review agreement does not validate the
-resulting native INCLUDE behavior.
+The recorded clean Emacs loading attempts initially failed because manually
+assembled load-paths omitted transitive dependencies. Loading dependencies via
+straight bootstrap and straight-use-package subsequently succeeded. This validates
+that historical dependency-loading route, not every export path in the prototype.
 
-FILE::LINE, :only-contents and induced-level behavior need export-level tests.
-Recursive ROAM_INCLUDE has not been implemented or validated here. A declared
-maximum-depth option is not evidence that a depth guard operates.
+## Observations in the tested org-transclusion environment
 
-Next validation is a bounded comparison with org-transclusion: file and headline
-sources, source-root removal, child heading levels, metadata and affiliated
-keywords, relative links, narrowing and export integration. Dependency loading
-must reflect the actual dependency resolver rather than a guessed partial
-load-path.
+- :only-contents with :level removed more heading structure than the requested
+  mount semantics; :no-first-heading with automatic :level was closer.
+- Default property filtering removed source-root drawer/CUSTOM_ID while retaining
+  the local CUSTOM_ID in the tested case.
+- File-node exclusion of keyword and property-drawer elements removed document
+  metadata while preserving affiliated NAME/CAPTION keywords in the examples.
+- :expand-links resolved relative file links against the source directory.
+- A narrowed add-all invocation avoided invalid IDs outside the restriction.
 
-Source: archived session 019f8056-9275-7e43-8fa2-651004902291, prototype
-implementation/review interval. No original clean project snapshot is identified
-for these edits. No project build or test was rerun during this reconstruction.
+The assistant recommended further evaluation of an org-transclusion wrapper.
+The user instead adopted the narrower independent adapter contract. Do not
+confuse that recommendation with an adopted replacement decision.
+
+## What remains unproven
+
+The comparison did not establish complete LaTeX/batch-export equivalence, all
+COMMENT behavior or every descendant-property filtering boundary. It did not
+prove the proposed adapter's FILE::LINE search syntax. Earlier prototype checks
+were static. Implement and test the base/mount compiler, literal contexts,
+affiliated keywords and restriction handling before claiming those contracts.
