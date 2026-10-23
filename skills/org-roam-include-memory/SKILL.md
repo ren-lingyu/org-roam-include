@@ -1,12 +1,18 @@
 ---
 name: org-roam-include-memory
-description: Recover and interpret org-roam-include's formal GAW memory before continuing project work or reconstructing historical knowledge.
+description: Use whenever working in the org-roam-include repository or discussing its code, behavior, bugs, tests, Nix checks, documentation, or design. Read project memory first, even when the request does not mention GAW or memory.
 ---
 
 # Org-roam Include memory
 
-Use this entry point to recover project knowledge. Use the separately available
-`git-agent-workflow` skill for GAW discovery, reconstruction and checkpoint
+Use this entry point before substantive work on org-roam-include, including
+read-only analysis and review. The repository context is enough to select it:
+requests about "this repository" or "this package" do not need to name GAW or
+memory. Recover current memory first, then read only the design or validation
+references needed for the task.
+
+Use the separately available `git-agent-workflow` skill for GAW discovery,
+reconstruction and checkpoint
 operations, and `git-maintenance` for drafting checkpoint messages from staged
 changes. Their availability does not grant execution permissions.
 
