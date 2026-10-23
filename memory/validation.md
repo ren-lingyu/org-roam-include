@@ -42,6 +42,17 @@ experiments used modified/staged states without exact clean-commit provenance.
 Do not attach equivalent main commits as substitutes. A version declaration is
 not evidence of a published tag or release.
 
+## Reading retrospective states
+
+These GAW snapshots were created during reconstruction, not on the dates of the
+original work. Interpret each complete workspace at its stated knowledge boundary.
+The original implementation evolved on dev and was squash-integrated into main;
+matching code in a main commit does not identify an earlier experimental snapshot.
+Use the main DAG together with conversation/tool evidence for supported ordering,
+and inspect Git for actual parent relationships rather than inferring them from
+commit dates. Consult original inputs when the retained knowledge leaves a material
+question unresolved; already represented states need not be replayed by default.
+
 ## Present source inspection and evidence quality
 
 The inspected current source has version 0.1.0, minimum requirements Emacs 30.1,
