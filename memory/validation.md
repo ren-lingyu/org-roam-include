@@ -1,38 +1,37 @@
-# Headline repair and recursion findings
+# Recursive integration validation
 
-Source: archived session 019f8056-9275-7e43-8fa2-651004902291, recursive
-boundary probes and standalone main headline repair. These are historical
-observations, not tests rerun during reconstruction. Exact original clean commits
-for the experimental and staged states are not established.
+Source: archived session 019f8056-9275-7e43-8fa2-651004902291, private-search
+experiments, main/dev conflict resolution and the repeated tests before staging
+the resolved candidate. No tests were rerun during memory reconstruction.
 
-## Failure that changed the implementation
+## Historical observations
 
-Whole-file mixed recursion worked in initial advice experiments, but headline
-FILE::LINE expansion failed with a fuzzy-expression error. Direct probes also
-showed that a numeric suffix was not interpreted as the intended line location;
-CUSTOM_ID and title searches had different semantics. Compiler formatting tests
-had missed this failure.
+- Bare FILE::LINE failed in actual native expansion despite earlier compiler
+  output tests. Private numeric search repaired headline selection without
+  changing native :only-contents or :lines interpretation.
+- Recursive ROAM -> ROAM, native -> ROAM, and ROAM -> native -> ROAM passed.
+  Included content with file-node property mounts also expanded recursively.
+- Outer :lines selection occurred before inner wrapper resolution. Invalid IDs
+  outside the selected range did not fail the tested expansion.
+- Headline :only-contents still allowed recursive inner wrappers. Whole-file,
+  direct-headline and indirect-headline cycles were rejected by native Org.
+- COMMENT subtrees and source-block literal wrappers were excluded. Unmarked
+  ordinary buffers were inert, and mode disable removed hook/advice integration.
+- Main's isolated headline tests and the recursive suite both passed after the
+  squash conflict was resolved, before the candidate was explicitly staged.
 
-The chosen private prefix uses the recorded database point to derive a physical
-line, leaving native selection and :only-contents to Org. Falling back to absolute
-subtree ranges would have forced the adapter to interpret native argument
-combinations and was rejected.
+The resolution kept main's private-search fix and dev's export-marker/dynamic
+recursive architecture. Passing dev experiments alone were not treated as main
+verification; the integration was tested again.
 
-## Recorded repair tests
+## Limits and next verification
 
-The private-search dev tests covered gated handler behavior, headline includes,
-headline :only-contents, mixed recursive forms and native cycle detection.
-They validate that experimental dev state, not an already-integrated main feature.
+These were temporary scripts and saved-file fixtures, not yet a maintained ERT
+suite. No complete backend compatibility matrix or arbitrary native INCLUDE
+behavior is established. Setup failure behavior was tested separately through
+simulated missing interfaces and warning-only disablement.
 
-After the user switched to main and requested the isolated repair, a separate
-run passed private location generation, headline/body/child expansion,
-:only-contents removal of the source root, and literal wrapper preservation in
-source blocks. The repair was then explicitly staged. No recursive advice was
-introduced by that standalone patch.
-
-Prior setup tests exercised combined diagnostics, failed capability reports,
-warning-only mode disablement and cleanup. Base structural compiler tests covered
-raw tails, affiliated prefixes, mounts, restrictions and literal contexts.
-
-Next repeat headline and recursive tests after main/dev integration. Preserve
-that distinction rather than transferring dev successes to untested main code.
+Original experimental and resolved working-tree states do not have unambiguous
+clean-commit provenance. Equivalent main commits or later commits cannot supply
+it retrospectively. Promote representative boundaries into regression tests and
+align package documentation before release preparation.

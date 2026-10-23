@@ -18,11 +18,10 @@ is handled through org-execute-file-search-functions, moves to the physical line
 and checks headline alignment. Bare FILE::LINE was tested and rejected because
 Org treated it as fuzzy search. Do not reinstate it or fall back to title lookup.
 
-In the isolated main repair, mode activation registers the private handler and
-mode disable/setup failure removes it. Recursive integration is intended to scope
-this handler dynamically to native expansion instead of ordinary file searches.
-The adapter does not add :only-contents t automatically; native arguments select
-root removal and range semantics.
+Bind the handler dynamically in org-execute-file-search-functions during native
+expansion. It is private intermediate syntax, not a permanent ordinary-link
+extension. The adapter does not add :only-contents t automatically; native
+arguments select root removal and range semantics.
 
 ## Projection and mount policy
 
@@ -56,7 +55,7 @@ Use internal constants for keyword/property spelling and role-based helper
 families rather than exposing unstable knobs. The public mode remains global
 and export-only. No custom recursive engine has been added.
 
-## Setup gate and recursive prerequisites
+## Setup gate and recursive integration
 
 org-roam-include-check-setup is the public diagnostic command. Internal variable
 and capability checks collect a combined result before enabling the global mode.
@@ -64,12 +63,23 @@ Check package-owned variables only. Missing required runtime interfaces cause
 warning diagnostics and keep the mode off; failure must not block Emacs startup.
 Retain the general check machinery even when a current variable list is empty.
 
-Use runtime capabilities rather than an assumed Emacs version alone. Probes show
-that native INCLUDE recursion re-enters the same expander symbol and that ordinary
-dynamic variables can carry context across child temporary buffers. A buffer-local
-marker alone cannot do this. The intended recursive integration marks the export
-copy, normalizes each expander invocation in advice and calls the original
-function unchanged. It is not yet the implemented package behavior here.
+Use runtime capabilities rather than an assumed Emacs version alone. The
+preprocessing hook marks the export buffer. Around advice on
+org-export-expand-include-keyword acts only on the marked export copy or within
+org-roam-include--within-native-expansion, dynamically propagating recursion into
+Org-created child buffers. A buffer-local marker alone cannot do this.
+
+Normalize the current buffer before each native invocation, bind the private
+search handler dynamically, and preserve native arguments, result and errors.
+An outer native :lines selection happens before recursion into its selected
+buffer, so excluded wrappers are never unnecessarily resolved. File reading,
+recursive expansion and cycle detection remain Org responsibilities.
+
+Unmarked ordinary buffers do not trigger normalization. Disabling the mode
+removes hook/advice integration; failed setup leaves it disabled. The private
+handler is not permanently added to global file-search hooks. Package-specific
+depth limits and cycle-stack scaffolding have been removed after native cycle
+behavior was tested.
 
 ## Reasons and non-goals
 
@@ -81,6 +91,6 @@ without redefining whole-file INCLUDE.
 
 No editing preview, live transclusion, property inheritance, ID/CUSTOM_ID migration,
 attachment repair, automatic DB synchronization or independent INCLUDE parser is
-planned for this initial contract. Recursive ROAM_INCLUDE is deferred rather than
-claimed complete. Package-owned validation infrastructure remains separate from
-Org-roam configuration validation.
+part of this contract. Mixed recursive native/ROAM INCLUDE is supported through
+native expansion rather than a separate engine. Package-owned validation
+infrastructure remains separate from Org-roam configuration validation.

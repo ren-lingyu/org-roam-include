@@ -1,44 +1,40 @@
 # Project memory
 
-This retrospective snapshot captures the isolated headline-location repair on
-main before recursive normalization is integrated. Read [design.md](design.md)
-for the current contract and [validation.md](validation.md) for the experiments.
+This retrospective snapshot captures recursive normalization integrated with the
+main headline fix and retested after conflict resolution. Read
+[design.md](design.md) for contracts and [validation.md](validation.md) for scope.
 
-## Consequential finding and repair
+## Implemented state and reasons
 
-Native Org INCLUDE does not treat the bare numeric suffix in FILE::LINE as the
-intended headline line search in the tested environment. It reaches fuzzy search
-and fails. Earlier compiler-output tests therefore did not establish headline
-export correctness.
+The export-only adapter now normalizes ROAM_INCLUDE at every native INCLUDE
+expander invocation. A preprocessing hook marks the export copy; thin around
+advice carries dynamic recursive context into Org-created child buffers, compiles
+mounts before keywords and calls the native expander with its original arguments.
 
-Headline nodes now use FILE::org-roam-include-line:N. A private search handler
-navigates to the recorded physical line and validates a heading, preserving the
-Org-roam DB identity/location boundary without title search or a custom selection
-parser. Org still interprets :only-contents and relative :lines semantics.
+Private headline search remains FILE::org-roam-include-line:N. Its handler is
+bound dynamically during native expansion, replacing the isolated fix's broader
+mode-lifecycle registration. Unmarked ordinary buffers remain inert. Mode disable
+removes hook/advice integration. Old package-specific maximum-depth and stack
+scaffolding was removed because tested native recursion and cycle detection
+cover the intended behavior.
 
-A recursive dev implementation was tested, but the user deliberately separated
-the headline bug fix onto main before integrating recursion. In this isolated
-repair, mode lifecycle registers/removes the handler; the later intended dynamic
-binding is not the main implementation at this boundary. Setup and base compiler
-behavior remain in place. The old depth/stack declarations have not yet been
-removed as part of recursive integration.
+The merge resolution retained main's headline repair together with dev's
+recursive architecture. Repeated headline and recursive tests passed on the
+resolved working-tree candidate before explicit staging. This is not a claim
+that a nearby clean project commit was the original test snapshot.
 
 ## Next action
 
-Integrate recursive normalization while preserving the standalone headline fix.
-Resolve main/dev differences deliberately, use dynamic search binding within the
-native expander advice, then repeat headline and recursion boundary tests. Do not
-replace private search with absolute subtree line ranges: that would require
-interpreting native selection arguments inside the adapter.
+Align README and Commentary with the integrated behavior, then promote useful
+temporary tests into a standalone regression suite. Separate implementation,
+verification and any later version/tag/release actions. Keep headline-node
+property mounts undefined rather than expanding policy for release convenience.
 
-## Evidence and limits
+## Evidence and remaining coverage
 
-Source: archived session 019f8056-9275-7e43-8fa2-651004902291, recursive
-boundary probes exposing numeric search failure, private-search dev experiments,
-and the user's request to reapply only the headline repair on main with tests.
-The tests and staged repair do not identify a single clean original commit.
-No main or dev commit is guessed as their project parent.
-
-Prototype, scope, base implementation and setup states are represented in
-first-parent history. Recursive integration and later release/test-system work
-remain to be reconstructed.
+Source: archived session 019f8056-9275-7e43-8fa2-651004902291, squash conflict
+resolution, handler integration and repeated headline/recursive test runs.
+Prior first-parent snapshots preserve the standalone fix and earlier assumptions.
+Release preparation, Emacs compatibility, Nix testing and runner migration remain
+to be reconstructed. No original clean project snapshot is inferred for this
+staged integration candidate.
