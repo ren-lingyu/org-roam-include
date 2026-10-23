@@ -49,6 +49,21 @@ Use internal constants for keyword/property spelling and role-based helper
 families rather than exposing unstable knobs. The public mode remains global
 and export-only. No custom recursive engine has been added.
 
+## Setup gate and recursive prerequisites
+
+org-roam-include-check-setup is the public diagnostic command. Internal variable
+and capability checks collect a combined result before enabling the global mode.
+Check package-owned variables only. Missing required runtime interfaces cause
+warning diagnostics and keep the mode off; failure must not block Emacs startup.
+Retain the general check machinery even when a current variable list is empty.
+
+Use runtime capabilities rather than an assumed Emacs version alone. Probes show
+that native INCLUDE recursion re-enters the same expander symbol and that ordinary
+dynamic variables can carry context across child temporary buffers. A buffer-local
+marker alone cannot do this. The intended recursive integration marks the export
+copy, normalizes each expander invocation in advice and calls the original
+function unchanged. It is not yet the implemented package behavior here.
+
 ## Reasons and non-goals
 
 Org should own selection, levels, recursion, paths, links and footnotes. The

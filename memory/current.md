@@ -1,45 +1,43 @@
 # Project memory
 
-This retrospective snapshot captures the implemented base adapter on dev before
-main integration, reviewed on 2026-07-21. Read [design.md](design.md) and
-[validation.md](validation.md) for the contract and limits.
+This retrospective snapshot captures main integration of the base adapter and the
+setup gate before recursive normalization. Read [design.md](design.md) for the
+implemented contract and [validation.md](validation.md) for historical evidence.
 
-## Objective and implemented state
+## State and decision
 
-The export-only adapter compiles file-node headline mounts to base ROAM_INCLUDE
-keywords, then lowers those keywords to native INCLUDE. Saved files and the
-Org-roam database remain authoritative. Native arguments are preserved verbatim.
-File-outline projection is explicit; general metadata filtering has been removed.
+The coherent export-only adapter has been integrated for main use. It preserves
+the two-stage mount/keyword pipeline, raw native arguments, explicit file-outline
+projection and database authority. Main-facing documentation describes package
+behavior rather than a development diary. The dev line and main history are not
+interchangeable project snapshots after squash integration.
 
-The compiler now uses Org AST elements for real keywords and headings, rather
-than matching block-contained examples. Actual keyword positions prefer
-:post-affiliated, preserving NAME/CAPTION prefixes. Local surface parsing uses rx;
-family-based helper naming separates keyword, mount, node, outline and INCLUDE
-responsibilities. Keyword and property names are internal constants, not premature
-user options.
-
-The inspected dev worktree was clean. Its changes were judged coherent for
-integration into main, but no staged changes existed during that review. This
-source-review context is associated with the exact inspected project snapshot.
+Capability probes support using native INCLUDE recursion with a thin advice.
+Mode activation is now protected by internal variable and runtime capability
+checks, combined in org-roam-include-check-setup. Failure produces a complete
+warning report and leaves the mode disabled instead of aborting Emacs startup.
+Keeping this gate in the single package file avoids needless compatibility-module
+loading complexity. An empty package-owned variable list is valid infrastructure,
+not a reason to delete validation.
 
 ## Limits and next action
 
-Temporary tests cover compilation output and structural boundaries. The headline
-form FILE::LINE is still assumed to be a native location; successful formatting
-is not proof that Org can expand it. Recursive ROAM_INCLUDE remains deferred.
+The setup failure path has been exercised, but recursive ROAM_INCLUDE is not yet
+integrated. A buffer-local export marker cannot propagate into Org-created child
+buffers by itself. Use dynamic recursive context alongside the marker when
+implementing advice; keep ordinary unmarked buffers inert.
 
-Integrate the coherent adapter into main, then probe Org's recursive entry points
-and protect mode activation with runtime capability checks before enabling a
-recursive design. Do not duplicate native argument or file-reading semantics.
+Test recursive file/headline cases and native selection boundaries, especially
+whether FILE::LINE actually works inside Org's expander. Do not add a custom
+cycle stack or depth guard before testing native behavior.
 
-## Evidence
+## Evidence and reconstruction status
 
-Source: archived session 019f8056-9275-7e43-8fa2-651004902291, narrowed
-implementation, AST/affiliated-keyword fixes, temporary tests and the clean-dev
-merge assessment. The preceding comparison explains why this is an independent
-adapter rather than a transclusion wrapper.
+Source: archived session 019f8056-9275-7e43-8fa2-651004902291, main squash
+preparation, recursive API probes, setup implementation and setup-check tests.
+Exact clean commits for all of these experiments are not established: similar
+setup subjects occur in both dev and main histories. No project parent is inferred
+from equivalent content or nearby main commits.
 
-The project-parent association records the clean source inspection. Original
-working-tree experiments do not gain exact provenance from that association.
-Subsequent main integration, recursion, release and Nix intervals remain pending
-historical reconstruction.
+Earlier prototype and scope decisions are represented in first-parent memory.
+Recursion, release, Nix and runner intervals remain to be reconstructed.
