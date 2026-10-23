@@ -1,42 +1,39 @@
-# Release-preparation evidence
+# Nix and real-dependency validation boundary
 
-## Recorded runs
+## Evidence sources
 
-Source: archived session 019f8056-9275-7e43-8fa2-651004902291, standalone ERT
-and Emacs 30 verification. No build or test was rerun for this reconstruction.
+Archived session 019f8056-9275-7e43-8fa2-651004902291 records eight passing ERT
+results and successful package-lint using Nix-provided Emacs 30.2/Org 9.7.38.
+That original test file unconditionally supplied Org-roam stand-ins; the run is
+not proof of real Org-roam integration despite available dependency packages.
 
-The release-preparation batch ERT command reported eight tests and eight expected
-results after the package version was changed to 0.1.0. The separate later Nix
-run used nixos-25.05's emacs30; its output identifies Emacs 30.2 and Org 9.7.38.
-It reported eight expected ERT results and no unexpected results. Package-lint
-also exited zero with empty captured diagnostics in that environment.
+Archived session 019f9eb1-9eac-7ef3-bd38-d2a55514d6a6 records flake development,
+user-reported passing checks, static Nix syntax/whitespace checks and removal of
+the fake node structure, resolver and provided feature. The final ERT now requires
+real Org-roam and the installed adapter, with a local lookup stub only. This
+establishes the intended test dependency boundary; no live database is exercised.
 
-The earlier attempt against the unstable package set encountered an upstream
-Org fixed-output hash mismatch. Falling back to the stable package set allowed
-the compatibility experiment to finish. This is an environment-selection result,
-not an adapter correctness fix or a guarantee for every Emacs 30/Org combination.
+## Test-system meaning
 
-## Regression coverage and dependency limit
+The package build treats compilation warnings as errors. ERT targets the built
+package rather than a source load-path override; lint targets the filtered source
+tree. The combined Emacs makes the package build part of the check dependency
+chain. Checks have separate temporary HOME/fixture behavior from an interactive
+devShell, which does not itself hide the user's configuration.
 
-The standalone suite covers private headline search, mixed recursion, property
-mount recursion, outer selection before recursion, COMMENT/literal boundaries,
-activation boundaries, native cycle detection and mode cleanup. Source fixtures
-are real temporary files. Package tests are not run by normal package loading.
+The maintained ERT scenarios cover private search, mixed recursion, property
+mounts, outer selection, COMMENT/literals, activation, cycle-related errors and
+mode cleanup. Prior temporary probes separately tested missing-capability failure
+and warning-only disablement. Neither set establishes all export backends.
 
-The original ERT suite unconditionally defines a stand-in Org-roam node structure
-and resolver and provides the org-roam feature before loading the package source.
-Installing real dependencies in the environment does not remove those stand-ins.
-This suite therefore does not establish real Org-roam integration coverage; the
-later dependency migration must change the test file itself.
+## Limits
 
-Earlier temporary probes additionally exercised setup failure reports and
-warning-only disablement. Their successful experiments and the maintained suite
-have distinct scopes; neither establishes all export backends.
+The user reported passing tests while the initial environment was being shaped.
+Subsequent removal of dependency stand-ins and README edits received static
+checks; do not infer a fresh complete execution for every intermediate revision.
+The upstream Org hash-mismatch workaround is environment evidence, not an adapter
+bug fix. No project build, ERT or lint was rerun for memory reconstruction.
 
-## Provenance and publication
-
-The final original session still reported a modified source file. Original exact
-clean commits for the working-tree tests are not established, so neither the
-version commit nor the suite-introduction commit is attached speculatively.
-The header version does not establish a Git tag or release. Those publication
-states have not been independently verified.
+Most original work used staged or modified trees. A nearby main commit is not
+assigned as original test provenance. Package version 0.1.0 does not independently
+establish tag/release publication.

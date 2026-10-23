@@ -102,11 +102,37 @@ preparation, not evidence of a published tag. README provides installation and
 configuration using require plus the global minor mode. Testing is explicit and
 separate from require or mode activation.
 
-The standalone ERT file is tests/org-roam-include-test.el at this historical
-boundary. Saved-source fixtures use make-temp-file with temporary-file-directory,
-so tests do write temporary disk files. A temporary buffer
-alone cannot represent native INCLUDE file-reading behavior faithfully.
+The maintained ERT file is tests/ert/ert.el. Saved-source fixtures use make-temp-file
+with temporary-file-directory, so tests do write temporary disk files. A temporary
+buffer alone cannot represent native INCLUDE file-reading behavior faithfully.
 
 Handwritten regexps use rx; internal constants centralize syntax spelling and
 helper names reflect their keyword/mount/node/outline responsibilities. These
 coding conventions support the package without adding user-facing configuration.
+
+## Nix testing architecture
+
+flake.nix uses flake-parts and an explicit fileset.toSource source tree containing
+org-roam-include.el, README.org and LICENSE. Keep the source tree distinct from the
+built Emacs package; a list of source paths cannot replace the source tree where
+package builds and load paths require a directory.
+
+packages.default uses trivialBuild with Org/Org-roam package requirements and
+turnCompilationWarningToError. A combined Emacs supplies the built package,
+package-lint and the package dependencies. devShell supplies that environment but
+does not itself isolate user configuration; check derivations are the build/test
+boundary, with explicit quick/batch invocation and temporary HOME setup.
+
+tests/default.nix receives pkgs, source and emacs, routing real packaged-behavior
+ERT and source-tree package-lint separately. Test Nix definitions may use paths
+inside tests but must not reach into the parent tree or assume outside filenames.
+Do not expand parameters into a redundant package-file inventory when source
+already expresses the package source boundary.
+
+ERT requires real org-roam and org-roam-include, retaining a local cl-letf override
+only for node lookup against fixture records. It does not access the live Org-roam
+database. Lint enumerates the filtered source tree. Tests remain development
+inputs and do not run when users require the library or enable the mode.
+
+The temporary Nixpkgs pin addresses an upstream Org hash mismatch pending channel
+availability, not an architectural preference for permanent commit pinning.
