@@ -1,4 +1,4 @@
-# Historical verification and runner limits
+# Verification evidence and runner limits
 
 ## Established validation boundary
 
@@ -53,11 +53,11 @@ and inspect Git for actual parent relationships rather than inferring them from
 commit dates. Consult original inputs when the retained knowledge leaves a material
 question unresolved; already represented states need not be replayed by default.
 
-## Present source inspection and evidence quality
+## Pre-refactor source inspection and evidence quality
 
-The inspected current source has version 0.1.0, minimum requirements Emacs 30.1,
-Org 9.7 and Org-roam 2.0.0. The flake selects Emacs 31. README still states Emacs
-31.0 and omits the two run.scm files from its tree listing; these are documentation
+The pre-refactor inspected source had version 0.1.0, minimum requirements Emacs 30.1,
+Org 9.7 and Org-roam 2.0.0. The flake selects Emacs 31. At that inspection README stated Emacs
+31.0 and omitted the two run.scm files from its tree listing; these are documentation
 differences, not newly established runtime failures. Both Guile files, their Nix
 substitutions and real-dependency requires were read; no builders were executed.
 
@@ -82,7 +82,32 @@ information and machine-specific paths. Necessary session identifiers remain as
 evidence locators. Project-parent content screening is excluded under the user's
 explicit direction; graph associations still use exact observed snapshots.
 
-The present-state project parent means current source inspection. The earlier
+The reconstruction checkpoint's present-state project parent means its source inspection. The earlier
 clean-dev association means its recorded source review, not all preceding test
 runs. Other original working-tree provenance remains uncertain. Recover actual
 parent relationships from Git rather than a parallel memory index.
+
+## Reference-based Nix refactor validation
+
+The user requested alignment with ../org-texmacs after introducing personal-nixpkgs.
+The ordinary worktree was modified without project staging/commits; no clean
+project commit represents this tested state. The existing user-edited flake.lock
+was preserved. Lisp source moved to lisp/org-roam-include.el and a byte comparison
+against the previous tracked source succeeded. ERT and both run.scm files were
+unchanged. Static diff whitespace checking succeeded, and new package/source/check
+paths were confirmed visible under the allowlist ignore rules.
+
+The user authorized one execution of:
+`timeout 120s nix flake check -L --no-write-lock-file path:<project-root>`.
+It exited zero with all checks passed on x86_64-linux. The shared flake reported
+25 checks; the package was built with compilation warnings as errors, the ERT
+builder freshly ran all eight maintained tests (zero unexpected), and the lint
+builder completed successfully. The check evaluated named/default package aliases,
+the Emacs 31.1 wrapper, development shell, overlays and formatter. Other exposed
+systems were omitted as incompatible; no cross-platform claim follows.
+
+Some dependency cache transfers retried. Org's initial .tar URL returned 404,
+then its .tar.lz fallback succeeded; these did not prevent the successful check.
+No lock update, formatter execution, live Org-roam DB test, new compatibility
+matrix, or publication validation was performed. No additional project parent is
+attached for the dirty refactor: current HEAD would describe the pre-refactor tree.

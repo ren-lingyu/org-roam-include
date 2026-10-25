@@ -1,5 +1,22 @@
 # Current project memory
 
+## Completed refactor
+
+The user requests refactoring this project using ../org-texmacs as a reference,
+building on their existing personal-nixpkgs input/lock edits, and maintaining GAW
+throughout. Initial inspection found flake.nix referencing a missing pkgs directory
+and not yet using the reference's mkFlake nixpkgs argument. The adopted scope
+is Nix packaging/check discovery, a lisp source directory, and corresponding README
+and ignore rules; preserve Lisp behavior, Emacs 31, real-dependency ERT, and Guile
+runners. Use package overlays and llib.tests.mkChecks as in the reference.
+The implementation now uses lisp/, package overlays, explicit MELPA version,
+mkChecks test overlays, and updated README/ignore rules. All build/check Emacs
+package sets select Emacs 31. ERT and both Guile runners are unchanged. The user
+authorized one 120-second Nix flake check with --no-write-lock-file and the path
+source (to include new files without staging); it exited zero with all checks
+passed, including eight ERT results and package-lint. The user's
+lockfile changes are preserved; ordinary project files remain unstaged.
+
 The requested historical reconstruction is complete through the three supplied
 Codex archives, with the relevant supplementary handoff distilled and the present
 project source inspected. Read [design.md](design.md) for behavior/rationale and
@@ -17,34 +34,23 @@ a private numeric headline search, AST-aware compilation and dynamically scoped
 normalization around native INCLUDE recursion. It does not provide live
 transclusion, DB repair or metadata migration.
 
-The flake uses Emacs 31 with the built package and real dependencies. ERT is at
-tests/ert/ert.el and locally stubs only node lookup; package-lint checks the
-filtered source tree. Separate run.scm files under both check directories are
-generated with replaceVarsWith and run under Guile. Nixpkgs uses nixpkgs-unstable;
-the earlier temporary pin and the current locked-input refresh are repository
-facts, not grounds to invent unrecorded decisions or historical validation.
-
-Current source inspection is associated with the exact project snapshot used.
-That association does not identify the original snapshots for earlier dirty-tree
-tests. No Nix build, ERT or package-lint was rerun during this reconstruction.
+The Nix configuration now follows the org-texmacs overlay/check discovery pattern
+and the source library is lisp/org-roam-include.el, byte-identical to its previous
+root file. Version declarations remain 0.1.0. The one authorized Nix check
+successfully built the package, ran all eight ERT tests and passed package-lint
+on x86_64-linux. Other systems were omitted by Nix. Earlier historical evidence
+remains in validation.md.
 
 ## Open points and next action
 
-- README Requirements still says Emacs 31.0, while Package-Requires declares
-  Emacs 30.1. Historical execution on Emacs 30.2 exists, but is not a complete
-  compatibility matrix. Reconcile the documentation in a separately authorized
-  maintenance task rather than silently choosing a new minimum version here.
-- README Repository Structure omits tests/ert/run.scm and
-  tests/package-lint/run.scm. The handoff repeats an incomplete layout; the actual
-  source files establish the present runner structure.
-- Git tag/release publication and current CI status were not independently
-  verified. Existing installation, ERT and 0.1.0 declarations are not unfinished
-  work merely because an earlier review said they were missing.
+- Refactor and authorized validation are complete; review the ordinary project
+  diff before any separately authorized staging. Local load paths now end in lisp/.
+- Ordinary project files remain unstaged. Preserve the user's existing flake.lock.
+- Release publication and current CI status remain unverified and outside this task.
 
-No new feature or package-merger task is adopted from the supplied materials.
-For follow-up maintenance, first address the concrete documentation discrepancies
-if requested; run builds/tests only within that task's authorization. Keep the
-existing native INCLUDE boundary when considering future features.
+The former README minimum-version and runner-layout discrepancies are addressed
+by this refactor. No Lisp feature or package-merger task is adopted. Preserve the
+native INCLUDE boundary for any later feature work.
 
 ## Reconstruction coverage and evidence limits
 

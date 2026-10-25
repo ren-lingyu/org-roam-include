@@ -100,7 +100,7 @@ infrastructure remains separate from Org-roam configuration validation.
 
 ## Package and regression-test boundary
 
-The package remains a single Emacs Lisp library; the 0.1.0 header is release
+The package remains a single Emacs Lisp library at lisp/org-roam-include.el; the 0.1.0 header is release
 preparation, not evidence of a published tag. README provides installation and
 configuration using require plus the global minor mode. Testing is explicit and
 separate from require or mode activation.
@@ -115,31 +115,32 @@ coding conventions support the package without adding user-facing configuration.
 
 ## Nix testing architecture
 
-flake.nix uses flake-parts and an explicit fileset.toSource source tree containing
-org-roam-include.el, README.org and LICENSE. Keep the source tree distinct from the
-built Emacs package; a list of source paths cannot replace the source tree where
-package builds and load paths require a directory.
+flake.nix calls personal-nixpkgs.lib.mkFlake with inputs.nixpkgs, moduleLocation,
+llib, lpkgs, and specialArgs.src following the org-texmacs reference. src is a
+fileset.toSource directory rooted at lisp/. Keep a source directory, not a list
+of files: both the package builder and package-lint need directory semantics.
 
-packages.default uses trivialBuild with Org/Org-roam package requirements and
-turnCompilationWarningToError. A combined Emacs supplies the built package,
-package-lint and the package dependencies. devShell supplies that environment but
-does not itself isolate user configuration; check derivations are the build/test
-boundary, with explicit quick/batch invocation and temporary HOME setup.
+pkgs/default.nix discovers overlay.nix through llib.packages.mkOverlays. The
+emacsPackages/org-roam-include overlay uses melpaBuild with explicit version and
+melpaVersion 0.1.0, Org/Org-roam requirements, and compilation warnings as errors.
+The Emacs wrapper overlay selects Emacs 31. packages.default and the named package
+use emacsPackagesFor emacs31 too, so builds, ERT, lint and development agree.
+Package-lint is added only to the lint check's Emacs, not the development wrapper.
+legacyPackages and overlays are exposed through the shared mkFlake integration.
 
-tests/default.nix receives pkgs, source and emacs, routing real packaged-behavior
-ERT and source-tree package-lint separately. Test Nix definitions may use paths
-inside tests but must not reach into the parent tree or assume outside filenames.
-Do not expand parameters into a redundant package-file inventory when source
-already expresses the package source boundary.
+tests/default.nix uses llib.tests.mkChecks to discover test-overlay.nix and supplies
+src, emacs, Guile/build primitives and the Emacs 31 package set. Each check overlay
+calls its adjacent test.nix; Nix definitions may use paths within tests but do not
+reach into the parent tree. ERT remains tests/ert/ert.el and requires real org-roam
+and the installed org-roam-include, stubbing only node lookup for fixture records.
+Lint enumerates only the filtered source tree. Both checks retain the Guile runners
+below. No tests run when requiring the library or enabling the mode.
 
-ERT requires real org-roam and org-roam-include, retaining a local cl-letf override
-only for node lookup against fixture records. It does not access the live Org-roam
-database. Lint enumerates the filtered source tree. Tests remain development
-inputs and do not run when users require the library or enable the mode.
-
-The earlier temporary Nixpkgs pin addressed an upstream Org hash mismatch pending
-channel availability, not an architectural preference for permanent commit pinning.
-The later configuration selects nixpkgs-unstable again.
+README documents the lisp/ load path and package/check layout. Its Emacs minimum
+now matches Package-Requires (30.1), while explicitly describing the Nix environment
+as Emacs 31. This wording does not establish a new compatibility test matrix.
+The shared treefmt integration is available, with flakeCheck disabled as in the
+reference. The user-supplied lockfile edits remain unchanged by this refactor.
 
 ## Symbol documentation convention
 
