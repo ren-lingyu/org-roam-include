@@ -90,8 +90,8 @@ parent relationships from Git rather than a parallel memory index.
 ## Reference-based Nix refactor validation
 
 The user requested alignment with ../org-texmacs after introducing personal-nixpkgs.
-The ordinary worktree was modified without project staging/commits; no clean
-project commit represents this tested state. The existing user-edited flake.lock
+The original test execution used the modified ordinary worktree before project
+staging/commit. The existing user-edited flake.lock
 was preserved. Lisp source moved to lisp/org-roam-include.el and a byte comparison
 against the previous tracked source succeeded. ERT and both run.scm files were
 unchanged. Static diff whitespace checking succeeded, and new package/source/check
@@ -109,5 +109,13 @@ systems were omitted as incompatible; no cross-platform claim follows.
 Some dependency cache transfers retried. Org's initial .tar URL returned 404,
 then its .tar.lz fallback succeeded; these did not prevent the successful check.
 No lock update, formatter execution, live Org-roam DB test, new compatibility
-matrix, or publication validation was performed. No additional project parent is
-attached for the dirty refactor: current HEAD would describe the pre-refactor tree.
+matrix, or publication validation was performed. The initial refactor checkpoint
+omitted a project parent because HEAD still described the pre-refactor tree.
+
+After the user committed the refactor, read-only inspection of the entire committed
+diff confirmed it matches the previously reviewed staged changes; Git status is
+clean. The follow-up checkpoint associates the exact project commit inspected for
+this completion confirmation. This records post-commit source review, not a fresh
+Nix/ERT/lint run and not retroactive clean-commit provenance for the original test.
+The existing ancestor closure was already retained through earlier project-parent
+associations; the new committed diff contains the reviewed project changes only.

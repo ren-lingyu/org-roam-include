@@ -15,7 +15,9 @@ package sets select Emacs 31. ERT and both Guile runners are unchanged. The user
 authorized one 120-second Nix flake check with --no-write-lock-file and the path
 source (to include new files without staging); it exited zero with all checks
 passed, including eight ERT results and package-lint. The user's
-lockfile changes are preserved; ordinary project files remain unstaged.
+lockfile changes are preserved. The user has committed the complete refactor;
+post-commit inspection confirms the committed diff matches the reviewed staged
+changes, and the ordinary worktree is clean.
 
 The requested historical reconstruction is complete through the three supplied
 Codex archives, with the relevant supplementary handoff distilled and the present
@@ -43,9 +45,10 @@ remains in validation.md.
 
 ## Open points and next action
 
-- Refactor and authorized validation are complete; review the ordinary project
-  diff before any separately authorized staging. Local load paths now end in lisp/.
-- Ordinary project files remain unstaged. Preserve the user's existing flake.lock.
+- Refactor, validation and the user's project commit are complete. The ordinary
+  worktree is clean; no implementation or staging step remains for this task.
+- Local load paths now end in lisp/. Keep the committed lockfile unless a later
+  task explicitly changes dependencies.
 - Release publication and current CI status remain unverified and outside this task.
 
 The former README minimum-version and runner-layout discrepancies are addressed
