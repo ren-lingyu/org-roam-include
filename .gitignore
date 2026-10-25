@@ -8,7 +8,12 @@
 !flake.nix
 !flake.lock
 
-!*.el
+!lisp/
+!lisp/*.el
+
+!pkgs/
+!pkgs/**/
+!pkgs/**/*.nix
 
 !.github/
 !.github/**/

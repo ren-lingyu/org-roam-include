@@ -407,7 +407,7 @@ points:
   capabilities before mode activation.
 
 * Requirements
-- Emacs 31.0 or later
+- Emacs 30.1 or later (the Nix environment uses Emacs 31)
 - Org mode 9.7 or later
 - Org-roam 2.0.0 or later
 
@@ -416,14 +416,14 @@ This repository is not published as an ELPA package yet.  For local use, put
 =org-roam-include.el= somewhere on =load-path=, then require it:
 
 #+BEGIN_SRC emacs-lisp
-  (add-to-list 'load-path "/path/to/org-roam-include")
+  (add-to-list 'load-path "/path/to/org-roam-include/lisp")
   (require 'org-roam-include)
 #+END_SRC
 
 During local development, loading the file directly is also sufficient:
 
 #+BEGIN_SRC emacs-lisp
-  (load-file "/path/to/org-roam-include/org-roam-include.el")
+  (load-file "/path/to/org-roam-include/lisp/org-roam-include.el")
 #+END_SRC
 
 * Configuration
@@ -448,7 +448,13 @@ Run the complete test suite with:
 
 The flake builds the package with compilation warnings treated as errors, runs
 the ERT suite against the built package and its real Org-roam dependency, and
-runs =package-lint= against the filtered source tree.
+runs =package-lint= against the filtered =lisp/= source tree.  Checks are discovered
+through =personal-nixpkgs.lib.tests.mkChecks= and their =test-overlay.nix= files.
+
+The =pkgs/= overlays provide =packages.org-roam-include= (also =packages.default=)
+and =packages.emacs=.  The latter and the development shell use Emacs 31 with
+the built package and its dependencies.  Package-lint is added only for its check.
+Both checks keep their generated Guile runners and isolated temporary HOME.
 
 The ERT suite creates source Org fixtures with Emacs' =make-temp-file=.  During
 =nix flake check=, those files are written to the isolated build environment.
@@ -458,17 +464,30 @@ The ERT suite creates source Org fixtures with Emacs' =make-temp-file=.  During
   .
   ├── flake.nix
   ├── flake.lock
-  ├── org-roam-include.el
+  ├── lisp/
+  │   └── org-roam-include.el
+  ├── pkgs/
+  │   ├── default.nix
+  │   ├── emacsPackages/org-roam-include/
+  │   │   ├── overlay.nix
+  │   │   └── package.nix
+  │   └── emacs-with-org-roam-include/
+  │       ├── overlay.nix
+  │       └── package.nix
   ├── README.org
   ├── LICENSE
   ├── .gitignore
   └── tests/
       ├── default.nix
       ├── ert/
-      │   ├── default.nix
+      │   ├── test.nix
+      │   ├── test-overlay.nix
+      │   ├── run.scm
       │   └── ert.el
       └── package-lint/
-          └── default.nix
+          ├── test.nix
+          ├── test-overlay.nix
+          └── run.scm
 #+END_SRC
 
 * Design Boundary

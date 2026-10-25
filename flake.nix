@@ -1,70 +1,77 @@
 {
-
   description = "Emacs package: org-roam-include";
 
   inputs = {
     nixpkgs = {
       url = "git+https://github.com/NixOS/nixpkgs.git?ref=refs/heads/nixpkgs-unstable&shallow=1";
-      # url = "github:NixOS/nixpkgs/94a9730314351929f8e4ca5dd28d461f87e7ba76";
     };
-    flake-parts = {
-      url = "git+https://github.com/hercules-ci/flake-parts.git?ref=refs/heads/main&shallow=1";
+    personal-nixpkgs = {
+      url = "git+https://github.com/ren-lingyu/nixpkgs?ref=refs/heads/main&shallow=1";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { self, ... }@inputs : inputs.flake-parts.lib.mkFlake { inherit inputs; } {
-
-    systems = inputs.nixpkgs.lib.systems.flakeExposed;
-
-    perSystem = { config, pkgs, ... } : let
-
-      source = pkgs.lib.fileset.toSource {
-        root = ./.;
-        fileset = pkgs.lib.fileset.unions [
-          ./org-roam-include.el
-          ./README.org
-          ./LICENSE
+  outputs =
+    { self, ... }@inputs:
+    inputs.personal-nixpkgs.lib.mkFlake inputs.nixpkgs
+      ({ lib }: rec {
+        inherit inputs;
+        moduleLocation = __curPos.file;
+        llib = inputs.personal-nixpkgs.lib.mergeAttrsRecursive { allowOverrides = false; } [
+          { inherit (inputs.personal-nixpkgs.lib) tests packages; }
         ];
-      };
-
-      emacsPackages = pkgs.emacsPackagesFor pkgs.emacs31;
-
-      emacs = emacsPackages.emacsWithPackages (ps_ : (builtins.concatLists [
-        (with ps_; [
-          package-lint
-        ])
-        [ config.packages.default ]
-      ]));
-
-    in {
-
-      packages = {
-        default = emacsPackages.trivialBuild {
-          pname = "org-roam-include";
-          version = "0.1.0";
-          src = source;
-          packageRequires = [
-            emacsPackages.org
-            emacsPackages.org-roam
-          ];
-          turnCompilationWarningToError = true;
+        lpkgs = import ./pkgs {
+          inherit llib;
+          inherit (specialArgs) src;
         };
-      };
-
-      checks = import ./tests {
-        inherit pkgs source emacs;
-      };
-
-      devShells = {
-        default = pkgs.mkShell {
-          packages = [
-            emacs
-          ];
+        specialArgs = {
+          src = lib.fileset.toSource {
+            root = ./lisp;
+            fileset = ./lisp;
+          };
         };
-      };
+      })
+      (
+        { src, llib, lpkgs, ... }:
+        {
+          systems = inputs.nixpkgs.lib.systems.flakeExposed;
 
-    };
+          perSystem =
+            { pkgs, ... }:
+            let
+              emacsPackages = pkgs.emacsPackagesFor pkgs.emacs31;
+            in
+            {
+              nixpkgs.overlays = [ lpkgs.overlays.legacy ];
 
-  };
+              legacyPackages = pkgs.legacyPackages;
 
+              packages = {
+                default = emacsPackages.org-roam-include;
+                org-roam-include = emacsPackages.org-roam-include;
+                emacs = pkgs.emacs-with-org-roam-include;
+              };
+
+              checks = import ./tests {
+                inherit src pkgs llib;
+                emacs = pkgs.emacs-with-org-roam-include;
+              };
+
+              devShells.default = pkgs.mkShell {
+                packages = [ pkgs.emacs-with-org-roam-include ];
+              };
+
+              treefmt = {
+                flakeCheck = false;
+                settings.excludes = [
+                  "*.patch"
+                  ".gitignore"
+                  "LICENSE"
+                  "README.org"
+                  "flake.lock"
+                ];
+              };
+            };
+        }
+      );
 }
