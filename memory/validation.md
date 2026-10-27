@@ -119,3 +119,46 @@ this completion confirmation. This records post-commit source review, not a fres
 Nix/ERT/lint run and not retroactive clean-commit provenance for the original test.
 The existing ancestor closure was already retained through earlier project-parent
 associations; the new committed diff contains the reviewed project changes only.
+
+
+## Later staged alignment: dependency baseline
+
+For node 1 of the user-approved alignment plan, the existing flake URL/lock edits
+were reviewed without additional dependency updates. The user authorized one
+`timeout 120s nix flake check -L --no-write-lock-file`; it exited zero on
+x86_64-linux and reported zero checks needing execution. It accepted existing
+package/ERT/lint results; this is not a new fresh run of the eight ERT cases.
+Other systems were omitted. The check was against the working candidate before
+the user's commit. The two input files were staged with explicit authorization;
+no ordinary commit was performed by the agent.
+
+
+## Staged alignment: formatting validation
+
+For node 3, the user authorized `timeout 120s nix fmt` followed by
+`timeout 120s nix flake check -L --no-write-lock-file`. Ten tracked files changed.
+Static comparison found identical non-comment token streams in library Lisp,
+ERT and the changed Scheme runner, and Nix diffs contained layout changes.
+Whitespace checks passed. The flake check exited zero on x86_64-linux, rebuilt
+the package with compilation warnings as errors, ran eight ERT tests with zero
+unexpected results, and completed package-lint. Other systems were omitted.
+This check was on the formatting candidate before the user's commit.
+
+
+## Staged alignment: formatting check gate
+
+Node 4 only enables treefmt.flakeCheck. The user authorized one
+`timeout 120s nix flake check -L --no-write-lock-file`; it passed on x86_64-linux,
+freshly executing the treefmt builder while reusing node-3 package/ERT/lint
+results. Other systems were omitted. The working diff contains one changed
+boolean and passes whitespace checking. No Emacs-selection, package-output or
+Lisp behavior change is part of this candidate.
+
+
+The user committed the formatting and gate candidates separately. Between them,
+the user also independently committed removal of the obsolete *.patch formatter
+exclusion. The agent inspected these final commits and a clean ordinary worktree;
+no check was rerun by the agent after that exclusion cleanup. The first milestone
+checkpoint associates the exact gate commit inspected for completion. The earlier
+working-candidate test results remain separately scoped rather than being claimed
+as fresh runs on the committed milestone.

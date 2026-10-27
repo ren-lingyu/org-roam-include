@@ -139,8 +139,11 @@ below. No tests run when requiring the library or enabling the mode.
 README documents the lisp/ load path and package/check layout. Its Emacs minimum
 now matches Package-Requires (30.1), while explicitly describing the Nix environment
 as Emacs 31. This wording does not establish a new compatibility test matrix.
-The shared treefmt integration is available, with flakeCheck disabled as in the
-reference. The user-supplied lockfile edits remain unchanged by this refactor.
+The shared treefmt integration is enabled through the committed flakeCheck = true
+gate, after a separate pure-formatting commit. The obsolete *.patch exclusion was
+removed in an independent user commit. The later alignment starts from the
+reviewed user-supplied dependency updates; no additional lockfile refresh is
+planned.
 
 ## Symbol documentation convention
 

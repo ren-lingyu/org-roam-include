@@ -1,6 +1,65 @@
 # Current project memory
 
-## Completed refactor
+## Active staged alignment plan
+
+The user approved implementing a seven-node alignment plan based on the later
+org-roam-organize refactor. The earlier lisp/package/test-overlay migration and
+rx any-to-in change are already committed; do not repeat those migrations.
+Proceed one node at a time: (1) existing dependency/URL updates, (2) ignore rule
+sorting only, (3) pure repository formatting, (4) enabling treefmt checks,
+(5) default Emacs and named-package/overlay alignment, (6) README alignment,
+(7) narrowing llib to directly inherited tests/packages attributes.
+
+The user explicitly chose default pkgs.emacs/pkgs.emacsPackages and removal of
+packages.default, retaining org-roam-include and emacs outputs. These choices
+supersede the earlier Emacs-31 constraint for the planned alignment. They are
+not yet implemented. Preserve Lisp behavior, version 0.1.0, eight ERT scenarios,
+and both existing Guile runners. There is one ERT suite, so do not introduce
+shared-test-builder scaffolding.
+
+Each node requires review and authorization for validation commands and explicit
+ordinary staging, then a git-maintenance message in ordinary-project tmp/commit.md.
+Wait for the user's manual commit and verify HEAD movement before the next node.
+Maintain current memory during work. Planned checkpoint milestones are after
+node 4 and after node 7, with additional checkpoints only for consequential
+blockers or decisions. GAW messages must also follow git-maintenance, using
+Conventional Commit subjects and the established English memory-message style.
+
+Node 1 is committed by the user as `chore(flake): refresh inputs and normalize
+personal-nixpkgs URL`. Inspection confirmed only flake.nix/flake.lock changed,
+with the reviewed dependency graph and URL edits; the worktree was clean before
+node 2. The authorized flake check passed with zero pending builders on
+x86_64-linux, not fresh ERT/lint execution.
+
+Node 2 is committed by the user as `chore(git): sort gitignore whitelist entries
+alphabetically`. It changes only .gitignore; the ordinary worktree was clean
+before node 3. Its pattern set is identical, and before/after Git ignore decisions
+matched for all tracked paths and representative allow/deny paths. No tracked
+file is ignored; tmp remains ignored. The staged diff passed whitespace checks.
+
+Node 3 is committed by the user as `style: apply repository formatting`.
+Ten files changed only layout; Lisp source, ERT and Scheme non-comment token
+streams matched their pre-format versions. The authorized flake check passed on
+x86_64-linux, freshly rebuilt the package, ran eight ERT cases successfully and
+passed lint. The user committed the reviewed ten-file formatting candidate.
+
+Node 4 is committed as `test(treefmt): add repository formatting check` and
+only changes treefmt.flakeCheck to true. The user also independently committed
+removal of the obsolete *.patch formatter exclusion before node 4. The ordinary
+worktree is clean at this milestone. The agent's node-4 check passed and freshly
+executed treefmt, reusing successful node-3 package/ERT/lint results; it preceded
+that independent exclusion cleanup. The final commits were inspected statically,
+not rerun by the agent after the cleanup. The milestone project parent identifies
+that exact post-commit inspection, not new runtime test provenance.
+
+Nodes 1-4 are complete. This is the first planned GAW checkpoint. Next: node 5,
+default pkgs.emacs/pkgs.emacsPackages throughout builds, wrapper and tests;
+explicit emacsPackages overlay grouping/export; removal of packages.default in
+favor of org-roam-include and emacs named outputs. Then node 6 README and node 7
+llib narrowing. No node-5 changes have been made yet. The next planned checkpoint
+is after node 7, unless a consequential blocker or decision warrants one sooner.
+
+## Earlier completed refactor
 
 The user requests refactoring this project using ../org-texmacs as a reference,
 building on their existing personal-nixpkgs input/lock edits, and maintaining GAW
@@ -37,16 +96,17 @@ normalization around native INCLUDE recursion. It does not provide live
 transclusion, DB repair or metadata migration.
 
 The Nix configuration now follows the org-texmacs overlay/check discovery pattern
-and the source library is lisp/org-roam-include.el, byte-identical to its previous
-root file. Version declarations remain 0.1.0. The one authorized Nix check
+and the source library is lisp/org-roam-include.el. The earlier move preserved
+its bytes; the later node-3 formatting preserved its non-comment token stream. Version declarations remain 0.1.0. The one authorized Nix check
 successfully built the package, ran all eight ERT tests and passed package-lint
 on x86_64-linux. Other systems were omitted by Nix. Earlier historical evidence
 remains in validation.md.
 
 ## Open points and next action
 
-- Refactor, validation and the user's project commit are complete. The ordinary
-  worktree is clean; no implementation or staging step remains for this task.
+- The earlier refactor is committed. Follow the active staged alignment plan
+  above for the newly authorized task; the ordinary worktree is clean at the
+  node-4 milestone, with node 5 next.
 - Local load paths now end in lisp/. Keep the committed lockfile unless a later
   task explicitly changes dependencies.
 - Release publication and current CI status remain unverified and outside this task.
