@@ -95,8 +95,10 @@ The package does not:
 - recover stale database positions with fallback heuristics;
 - run =org-roam-db-sync= during export.
 
-If the database location is inconsistent with the saved source file, export
-fails clearly and asks the user to synchronize the Org-roam database.
+The package rejects invalid location data, out-of-bounds positions, and headline
+positions that are not at a headline.  These are structural checks: a stale
+position that still lands on another valid headline can pass them.  Keep the
+Org-roam database synchronized after source changes; export does not repair it.
 
 Source files are interpreted from disk, matching Org's native =#+INCLUDE=
 behavior.  Unsaved changes in already visited source buffers are not part of
@@ -407,13 +409,12 @@ points:
   capabilities before mode activation.
 
 * Requirements
-- Emacs 30.1 or later (the Nix environment uses Emacs 31)
+- Emacs 30.1 or later
 - Org mode 9.7 or later
 - Org-roam 2.0.0 or later
 
 * Installation
-This repository is not published as an ELPA package yet.  For local use, put
-=org-roam-include.el= somewhere on =load-path=, then require it:
+For local use, put =org-roam-include.el= on =load-path=, then require it:
 
 #+BEGIN_SRC emacs-lisp
   (add-to-list 'load-path "/path/to/org-roam-include/lisp")
@@ -425,6 +426,20 @@ During local development, loading the file directly is also sufficient:
 #+BEGIN_SRC emacs-lisp
   (load-file "/path/to/org-roam-include/lisp/org-roam-include.el")
 #+END_SRC
+
+With Nix, select the library or the Emacs wrapper explicitly; the flake does not
+provide a default package:
+
+#+BEGIN_SRC sh
+  nix build .#org-roam-include
+  nix build .#emacs
+#+END_SRC
+
+The =emacs= wrapper and the development shell include the built library and its
+dependencies.  They use the default =pkgs.emacs= and =pkgs.emacsPackages= from the
+locked nixpkgs input, rather than selecting a specific Emacs major version.
+The package requires Emacs 30.1 or later independently of that Nix selection.
+The public Emacs package overlay is exposed as =overlays.emacsPackages=.
 
 * Configuration
 Enable the global export preprocessor:
@@ -448,13 +463,13 @@ Run the complete test suite with:
 
 The flake builds the package with compilation warnings treated as errors, runs
 the ERT suite against the built package and its real Org-roam dependency, and
-runs =package-lint= against the filtered =lisp/= source tree.  Checks are discovered
-through =personal-nixpkgs.lib.tests.mkChecks= and their =test-overlay.nix= files.
+runs =package-lint= against the filtered =lisp/= source tree.  The flake also runs
+the treefmt formatting check.  ERT and lint checks are discovered through
+=personal-nixpkgs.lib.tests.mkChecks= and their =test-overlay.nix= files.
 
-The =pkgs/= overlays provide =packages.org-roam-include= (also =packages.default=)
-and =packages.emacs=.  The latter and the development shell use Emacs 31 with
-the built package and its dependencies.  Package-lint is added only for its check.
-Both checks keep their generated Guile runners and isolated temporary HOME.
+ERT and lint use the same default Emacs package set as the package and wrapper.
+Package-lint is added only for its check.  Both checks keep their generated Guile
+runners and isolated temporary HOME.
 
 The ERT suite creates source Org fixtures with Emacs' =make-temp-file=.  During
 =nix flake check=, those files are written to the isolated build environment.
