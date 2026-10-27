@@ -17,9 +17,7 @@
       ({ lib }: rec {
         inherit inputs;
         moduleLocation = __curPos.file;
-        llib = inputs.personal-nixpkgs.lib.mergeAttrsRecursive { allowOverrides = false; } [
-          { inherit (inputs.personal-nixpkgs.lib) tests packages; }
-        ];
+        llib = { inherit (inputs.personal-nixpkgs.lib) tests packages; };
         lpkgs = import ./pkgs {
           inherit llib;
           inherit (specialArgs) src;
