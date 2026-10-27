@@ -40,40 +40,37 @@
         }:
         {
           systems = inputs.nixpkgs.lib.systems.flakeExposed;
+          flake.overlays = { inherit (lpkgs.overlays) emacsPackages; };
 
-          perSystem =
-            { pkgs, ... }:
-            let
-              emacsPackages = pkgs.emacsPackagesFor pkgs.emacs31;
-            in
-            {
-              nixpkgs.overlays = [ lpkgs.overlays.legacy ];
+          perSystem = { pkgs, ... }: {
+            nixpkgs.overlays = [ lpkgs.overlays.legacy ];
 
-              legacyPackages = pkgs.legacyPackages;
+            legacyPackages = pkgs.legacyPackages;
 
-              packages = {
-                default = emacsPackages.org-roam-include;
-                org-roam-include = emacsPackages.org-roam-include;
-                emacs = pkgs.emacs-with-org-roam-include;
-              };
-
-              checks = import ./tests {
-                inherit src pkgs llib;
-                emacs = pkgs.emacs-with-org-roam-include;
-              };
-
-              devShells.default = pkgs.mkShell { packages = [ pkgs.emacs-with-org-roam-include ]; };
-
-              treefmt = {
-                flakeCheck = true;
-                settings.excludes = [
-                  ".gitignore"
-                  "LICENSE"
-                  "README.org"
-                  "flake.lock"
-                ];
-              };
+            packages = {
+              org-roam-include = pkgs.emacsPackages.org-roam-include;
+              emacs = pkgs.emacs-with-org-roam-include;
             };
+
+            checks = import ./tests {
+              inherit src pkgs llib;
+              emacs = pkgs.emacs-with-org-roam-include;
+            };
+
+            devShells = {
+              default = pkgs.mkShell { packages = [ pkgs.emacs-with-org-roam-include ]; };
+            };
+
+            treefmt = {
+              flakeCheck = true;
+              settings.excludes = [
+                ".gitignore"
+                "LICENSE"
+                "README.org"
+                "flake.lock"
+              ];
+            };
+          };
         }
       );
 }

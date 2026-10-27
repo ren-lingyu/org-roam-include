@@ -14,8 +14,8 @@ llib.tests.mkChecks {
       runCommand
       replaceVarsWith
       guile
+      emacsPackages
       ;
     inherit src emacs;
-    emacsPackages = pkgs.emacsPackagesFor pkgs.emacs31;
   };
 }

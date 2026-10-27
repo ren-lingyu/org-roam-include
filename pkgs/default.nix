@@ -4,7 +4,9 @@
     overlayFile = "overlay.nix";
     extraArgs = { inherit src; };
     groups = {
-      default = { };
+      emacsPackages = {
+        include = [ "emacsPackages" ];
+      };
       legacy = {
         export = true;
       };
