@@ -65,7 +65,7 @@
               devShells.default = pkgs.mkShell { packages = [ pkgs.emacs-with-org-roam-include ]; };
 
               treefmt = {
-                flakeCheck = false;
+                flakeCheck = true;
                 settings.excludes = [
                   ".gitignore"
                   "LICENSE"
