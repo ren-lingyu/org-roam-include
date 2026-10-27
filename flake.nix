@@ -67,7 +67,6 @@
               treefmt = {
                 flakeCheck = false;
                 settings.excludes = [
-                  "*.patch"
                   ".gitignore"
                   "LICENSE"
                   "README.org"
