@@ -151,9 +151,9 @@ tail of native Org INCLUDE arguments.")
 
 (defconst org-roam-include--property-drawer-begin-regexp
   (rx line-start
-      (* (any " \t"))
+      (* (in " \t"))
       ":PROPERTIES:"
-      (* (any " \t"))
+      (* (in " \t"))
       line-end)
   "Regexp matching an Org property drawer opening line.
 
@@ -162,9 +162,9 @@ metadata boundary helper.")
 
 (defconst org-roam-include--property-drawer-end-regexp
   (rx line-start
-      (* (any " \t"))
+      (* (in " \t"))
       ":END:"
-      (* (any " \t"))
+      (* (in " \t"))
       line-end)
   "Regexp matching an Org property drawer closing line.
 
@@ -173,9 +173,9 @@ compatibility fallback for locating headline body content.")
 
 (defconst org-roam-include--keyword-line-regexp
   (rx line-start
-      (group (* (any " \t")))
+      (group (* (in " \t")))
       "#+"
-      (group (+ (not (any ":\n"))))
+      (group (+ (not (in ":\n"))))
       ":"
       (group (* nonl))
       line-end)
@@ -186,8 +186,8 @@ replace only that line while preserving its indentation.")
 
 (defconst org-roam-include--node-id-and-tail-regexp
   (rx string-start
-      (* (any " \t"))
-      (group (+ (not (any " \t\n\r"))))
+      (* (in " \t"))
+      (group (+ (not (in " \t\n\r"))))
       (group (* anything))
       string-end)
   "Regexp separating an Org-roam node ID from its raw INCLUDE tail.
@@ -196,7 +196,7 @@ The first non-whitespace token is the node ID.  Everything after it is retained
 verbatim so native INCLUDE argument semantics remain owned by Org.")
 
 (defconst org-roam-include--unquotable-location-regexp
-  (rx (any "\"\n\r"))
+  (rx (in "\"\n\r"))
   "Regexp matching characters unsupported in generated INCLUDE locations.
 
 Rationale: Generated locations are placed in quoted Org syntax.  Rejecting
