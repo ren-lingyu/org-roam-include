@@ -22,18 +22,12 @@
     },
     "local-nixpkgs": {
       "inputs": {
-        "flake-parts": [
-          "personal-nixpkgs",
-          "flake-parts"
-        ],
+        "flake-parts": "flake-parts",
         "nixpkgs": [
           "personal-nixpkgs",
           "nixpkgs"
         ],
-        "treefmt-nix": [
-          "personal-nixpkgs",
-          "treefmt-nix"
-        ]
+        "treefmt-nix": "treefmt-nix"
       },
       "locked": {
         "path": "./pkgs",
@@ -49,10 +43,10 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1788982683,
-        "narHash": "sha256-PJCTsE4I20CrJJPcye9/z6brRFysG5+aygr/dZK097k=",
+        "lastModified": 1792842277,
+        "narHash": "sha256-pGPnZGi8y9d76xNeracniXO3dsYVROEmMkMc8jD0Ihc=",
         "ref": "refs/heads/nixpkgs-unstable",
-        "rev": "5052d7ccbcfb7e4ae1586cb2ecf95a2e3707dce9",
+        "rev": "d3b13ad75cc492690728f9307e443dec9ef9a20e",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/NixOS/nixpkgs.git"
@@ -81,27 +75,25 @@
     },
     "personal-nixpkgs": {
       "inputs": {
-        "flake-parts": "flake-parts",
         "local-nixpkgs": "local-nixpkgs",
         "nixpkgs": [
           "nixpkgs"
-        ],
-        "treefmt-nix": "treefmt-nix"
+        ]
       },
       "locked": {
-        "lastModified": 1792873262,
-        "narHash": "sha256-a6/24D0t4l3QsBhZSIeR7QfYTRXlJrS0QuZSkVPBY1s=",
+        "lastModified": 1793106151,
+        "narHash": "sha256-ntsu4fHDrDu2Q3NWC/4URM29JBzgHV3JaH46iP43ayY=",
         "ref": "refs/heads/main",
-        "rev": "81ec8b6ea5cad6d3d9456daae714ffacf3a612a0",
+        "rev": "b7879c696e8052cdc0d872ccce0e99fa972791c3",
         "shallow": true,
         "type": "git",
-        "url": "https://github.com/ren-lingyu/nixpkgs"
+        "url": "https://github.com/ren-lingyu/nixpkgs.git"
       },
       "original": {
         "ref": "refs/heads/main",
         "shallow": true,
         "type": "git",
-        "url": "https://github.com/ren-lingyu/nixpkgs"
+        "url": "https://github.com/ren-lingyu/nixpkgs.git"
       }
     },
     "root": {
@@ -114,6 +106,7 @@
       "inputs": {
         "nixpkgs": [
           "personal-nixpkgs",
+          "local-nixpkgs",
           "nixpkgs"
         ]
       },
