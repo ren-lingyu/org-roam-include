@@ -162,3 +162,47 @@ no check was rerun by the agent after that exclusion cleanup. The first mileston
 checkpoint associates the exact gate commit inspected for completion. The earlier
 working-candidate test results remain separately scoped rather than being claimed
 as fresh runs on the committed milestone.
+
+
+## Staged alignment: default Emacs and named packages
+
+The user authorized formatting only the four node-5 Nix files and running one
+full flake check. Both succeeded on x86_64-linux. Output confirms named
+org-roam-include/emacs packages without a default alias and the public
+emacsPackages overlay. Default Emacs in the locked nixpkgs is also 31.1;
+package, ERT and lint derivations are identical to the successful node-3 ones,
+so they were reused. Treefmt ran freshly and passed. No Lisp, runner or ERT logic
+was changed. This result applies to the staged working candidate before the
+user's commit. No project lockfile update occurred.
+
+
+## Staged alignment: README verification
+
+Node 6 audits README against the committed node-5 implementation. The agent
+read the complete README and verified package/check wiring and the structural
+DB-location validation boundary against source. The documentation now describes
+default Emacs, named outputs, the public package overlay and treefmt checks;
+it narrows the stale-database detection claim and removes an unverified release
+publication assertion. Read-only checks confirmed balanced delimiters in six
+Elisp blocks, four package symbols defined at HEAD and an existing LICENSE link.
+Whitespace checking passed. No example evaluation, build, test or formatter was
+run for this documentation candidate. Only README was staged with permission.
+
+
+## Staged alignment: final llib simplification
+
+Node 7 only replaces a single-element mergeAttrsRecursive expression with direct
+inheritance of the same tests/packages attributes. The user authorized one final
+`timeout 120s nix flake check -L --no-write-lock-file`; it passed on x86_64-linux.
+Package/ERT/lint derivations remained identical to successful earlier results
+and were reused; treefmt ran freshly and passed. This is a working-candidate
+check before the user's final commit, not a new fresh ERT run. Whitespace checks
+passed and only flake.nix was staged with permission.
+
+
+The user committed the README and llib simplification as separate final project
+commits. Read-only inspection confirmed the final commit contains the reviewed
+single-expression simplification and the ordinary worktree is clean. The final
+GAW checkpoint associates this exact inspected source state. It does not turn
+working-candidate checks into fresh post-commit executions. The seven-node plan
+is complete; all ordinary commits were performed by the user.

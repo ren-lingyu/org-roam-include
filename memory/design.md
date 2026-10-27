@@ -117,28 +117,32 @@ coding conventions support the package without adding user-facing configuration.
 
 flake.nix calls personal-nixpkgs.lib.mkFlake with inputs.nixpkgs, moduleLocation,
 llib, lpkgs, and specialArgs.src following the org-texmacs reference. src is a
-fileset.toSource directory rooted at lisp/. Keep a source directory, not a list
+fileset.toSource directory rooted at lisp/. llib directly inherits only tests/packages; it no longer wraps that single
+attribute set in mergeAttrsRecursive. Keep a source directory, not a list
 of files: both the package builder and package-lint need directory semantics.
 
 pkgs/default.nix discovers overlay.nix through llib.packages.mkOverlays. The
 emacsPackages/org-roam-include overlay uses melpaBuild with explicit version and
 melpaVersion 0.1.0, Org/Org-roam requirements, and compilation warnings as errors.
-The Emacs wrapper overlay selects Emacs 31. packages.default and the named package
-use emacsPackagesFor emacs31 too, so builds, ERT, lint and development agree.
+The package wiring uses default pkgs.emacs/pkgs.emacsPackages consistently
+for the wrapper, package, ERT, lint and development environment. It exposes named
+org-roam-include and emacs packages and removes packages.default. The package
+overlay has an explicit emacsPackages group and public overlays.emacsPackages.
 Package-lint is added only to the lint check's Emacs, not the development wrapper.
 legacyPackages and overlays are exposed through the shared mkFlake integration.
 
 tests/default.nix uses llib.tests.mkChecks to discover test-overlay.nix and supplies
-src, emacs, Guile/build primitives and the Emacs 31 package set. Each check overlay
+src, emacs, Guile/build primitives and the default Emacs package set. Each check overlay
 calls its adjacent test.nix; Nix definitions may use paths within tests but do not
 reach into the parent tree. ERT remains tests/ert/ert.el and requires real org-roam
 and the installed org-roam-include, stubbing only node lookup for fixture records.
 Lint enumerates only the filtered source tree. Both checks retain the Guile runners
 below. No tests run when requiring the library or enabling the mode.
 
-README documents the lisp/ load path and package/check layout. Its Emacs minimum
-now matches Package-Requires (30.1), while explicitly describing the Nix environment
-as Emacs 31. This wording does not establish a new compatibility test matrix.
+README documents the lisp/ load path and package/check layout. It distinguishes the Emacs 30.1 package minimum from the locked nixpkgs
+default Emacs selection, documents named-package builds without a default alias,
+and describes the public overlay and treefmt gate. This does not establish a
+new compatibility matrix or verify publication status.
 The shared treefmt integration is enabled through the committed flakeCheck = true
 gate, after a separate pure-formatting commit. The obsolete *.patch exclusion was
 removed in an independent user commit. The later alignment starts from the
