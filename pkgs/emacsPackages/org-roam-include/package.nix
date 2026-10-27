@@ -1,10 +1,19 @@
-{ lib, src, melpaBuild, org, org-roam }:
+{
+  lib,
+  src,
+  melpaBuild,
+  org,
+  org-roam,
+}:
 melpaBuild {
   inherit src;
   pname = "org-roam-include";
   version = "0.1.0";
   melpaVersion = "0.1.0";
-  packageRequires = [ org org-roam ];
+  packageRequires = [
+    org
+    org-roam
+  ];
   turnCompilationWarningToError = true;
   meta = {
     license = lib.licenses.gpl3Plus;

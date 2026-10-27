@@ -87,8 +87,7 @@
 ;; ==============================
 
 ;;;###autoload
-(defgroup org-roam-include
-  nil
+(defgroup org-roam-include nil
   "Resolve Org-roam nodes into native Org includes during export.
 
 Customize this group to control Org-roam Include behavior.  The package acts
@@ -102,8 +101,7 @@ this group covers only the adapter between those systems."
 ;; 常量定义
 ;; ==============================
 
-(defconst org-roam-include--variable-type-alist
-  nil
+(defconst org-roam-include--variable-type-alist nil
   "Variables and expected types checked before enabling the package.
 
 Each entry has the form (VARIABLE . TYPE) understood by
@@ -134,62 +132,55 @@ The list maps symbols to capability types checked by
 Rationale: Checking the interfaces used by the implementation is more precise
 than inferring compatibility from package version numbers alone.")
 
-(defconst org-roam-include--property-name
-  "ROAM_INCLUDE"
+(defconst org-roam-include--property-name "ROAM_INCLUDE"
   "Org property name used to declare headline replacement mounts.
 
 The property value is an Org-roam node ID.  A mount preserves its local
 headline and unrelated properties while replacing its body and descendants in
 the export working copy.")
 
-(defconst org-roam-include--keyword-name
-  "ROAM_INCLUDE"
+(defconst org-roam-include--keyword-name "ROAM_INCLUDE"
   "Org keyword name used for base Org-roam include declarations.
 
 The keyword value begins with an Org-roam node ID followed by an uninterpreted
 tail of native Org INCLUDE arguments.")
 
 (defconst org-roam-include--property-drawer-begin-regexp
-  (rx line-start
-      (* (in " \t"))
-      ":PROPERTIES:"
-      (* (in " \t"))
-      line-end)
+  (rx
+   line-start (* (in " \t")) ":PROPERTIES:" (* (in " \t")) line-end)
   "Regexp matching an Org property drawer opening line.
 
 This fallback parser is used only when the running Org lacks the preferred
 metadata boundary helper.")
 
 (defconst org-roam-include--property-drawer-end-regexp
-  (rx line-start
-      (* (in " \t"))
-      ":END:"
-      (* (in " \t"))
-      line-end)
+  (rx line-start (* (in " \t")) ":END:" (* (in " \t")) line-end)
   "Regexp matching an Org property drawer closing line.
 
 This pairs with `org-roam-include--property-drawer-begin-regexp' in the
 compatibility fallback for locating headline body content.")
 
 (defconst org-roam-include--keyword-line-regexp
-  (rx line-start
-      (group (* (in " \t")))
-      "#+"
-      (group (+ (not (in ":\n"))))
-      ":"
-      (group (* nonl))
-      line-end)
+  (rx
+   line-start
+   (group (* (in " \t")))
+   "#+"
+   (group (+ (not (in ":\n"))))
+   ":"
+   (group (* nonl))
+   line-end)
   "Regexp matching one complete Org keyword line.
 
 The groups capture indentation, keyword name, and raw value so compilation can
 replace only that line while preserving its indentation.")
 
 (defconst org-roam-include--node-id-and-tail-regexp
-  (rx string-start
-      (* (in " \t"))
-      (group (+ (not (in " \t\n\r"))))
-      (group (* anything))
-      string-end)
+  (rx
+   string-start
+   (* (in " \t"))
+   (group (+ (not (in " \t\n\r"))))
+   (group (* anything))
+   string-end)
   "Regexp separating an Org-roam node ID from its raw INCLUDE tail.
 
 The first non-whitespace token is the node ID.  Everything after it is retained
@@ -210,10 +201,8 @@ The prefix distinguishes package-generated line numbers from Org's public
 file-search syntax.")
 
 (defconst org-roam-include--line-search-regexp
-  (rx string-start
-      "org-roam-include-line:"
-      (group (+ digit))
-      string-end)
+  (rx
+   string-start "org-roam-include-line:" (group (+ digit)) string-end)
   "Regexp matching a complete private headline line-search value.
 
 The captured decimal line number is interpreted by
@@ -255,8 +244,8 @@ this format keeps diagnostics and generated keyword text consistent."
 
 KEY may use any letter case accepted by Org.  Non-string values return nil."
   (and (stringp key)
-       (string= (upcase key)
-                (upcase org-roam-include--keyword-name))))
+       (string=
+        (upcase key) (upcase org-roam-include--keyword-name))))
 
 (defun org-roam-include--warning (message)
   "Display Org-roam Include warning MESSAGE without signaling an error.
@@ -283,62 +272,66 @@ Rationale: Setup diagnostics need to report all invalid options in one pass
 rather than stop at the first failure.  The data-driven table also keeps
 validation policy separate from mode activation."
   (if (listp alist)
-      (let* ((result_bool t)
-             (result_message
-              (concat "All org-roam-include variables are as follow.\n"))
-             (add_to_result_message_
-              (lambda (var_name var_value var_expected_type)
-                (setq result_message
-                      (concat
-                       result_message
-                       (format "- %s? %s \n" var_name var_value)
-                       (cond
-                        ((or (and (eq var_value nil)
-                                  (eq var_expected_type 'directory))
-                             (and (eq var_value nil)
-                                  (eq var_expected_type 'file)))
-                         (format "  %s? %s (should be t)\n"
-                                 var_expected_type nil))
-                        ((eq var_expected_type 'directory)
-                         (format "  %s? %s (should be t)\n"
-                                 var_expected_type
-                                 (and (stringp var_value)
-                                      (file-directory-p var_value))))
-                        ((eq var_expected_type 'file)
-                         (format "  %s? %s (should be t)\n"
-                                 var_expected_type
-                                 (and (stringp var_value)
-                                      (file-exists-p var_value))))
-                        ((eq var_expected_type 'string)
-                         (format "  %s? %s (should be t)\n"
-                                 var_expected_type
-                                 (and (stringp var_value)
-                                      (not (string-empty-p var_value)))))
-                        ((eq var_expected_type 'list)
-                         (format "  %s? %s (should be t)\n"
-                                 var_expected_type
-                                 (listp var_value)))
-                        ((eq var_expected_type 'boolean)
-                         (format "  %s? %s (should be t)\n"
-                                 var_expected_type
-                                 (booleanp var_value)))
-                        ((eq var_expected_type 'integer)
-                         (format "  %s? %s (should be t)\n"
-                                 var_expected_type
-                                 (and (integerp var_value)
-                                      (> var_value 0))))
-                        (t
-                         (format "  the type of variable is not acceptable\n"))))))))
+      (let*
+          ((result_bool t)
+           (result_message
+            (concat
+             "All org-roam-include variables are as follow.\n"))
+           (add_to_result_message_
+            (lambda (var_name var_value var_expected_type)
+              (setq
+               result_message
+               (concat
+                result_message
+                (format "- %s? %s \n" var_name var_value)
+                (cond
+                 ((or (and (eq var_value nil)
+                           (eq var_expected_type 'directory))
+                      (and (eq var_value nil)
+                           (eq var_expected_type 'file)))
+                  (format "  %s? %s (should be t)\n"
+                          var_expected_type
+                          nil))
+                 ((eq var_expected_type 'directory)
+                  (format "  %s? %s (should be t)\n"
+                          var_expected_type
+                          (and (stringp var_value)
+                               (file-directory-p var_value))))
+                 ((eq var_expected_type 'file)
+                  (format "  %s? %s (should be t)\n"
+                          var_expected_type
+                          (and (stringp var_value)
+                               (file-exists-p var_value))))
+                 ((eq var_expected_type 'string)
+                  (format "  %s? %s (should be t)\n"
+                          var_expected_type
+                          (and (stringp var_value)
+                               (not (string-empty-p var_value)))))
+                 ((eq var_expected_type 'list)
+                  (format "  %s? %s (should be t)\n"
+                          var_expected_type
+                          (listp var_value)))
+                 ((eq var_expected_type 'boolean)
+                  (format "  %s? %s (should be t)\n"
+                          var_expected_type
+                          (booleanp var_value)))
+                 ((eq var_expected_type 'integer)
+                  (format "  %s? %s (should be t)\n"
+                          var_expected_type
+                          (and (integerp var_value) (> var_value 0))))
+                 (t
+                  (format
+                   "  the type of variable is not acceptable\n"))))))))
         (dolist (pair alist)
           (let* ((var_name (car pair))
-                 (var_value (when (boundp var_name) (symbol-value var_name)))
+                 (var_value
+                  (when (boundp var_name)
+                    (symbol-value var_name)))
                  (var_expected_type (cdr pair))
                  (add_to_result_message_short_
                   (lambda ()
                     (funcall add_to_result_message_
-                             var_name
-                             var_value
-                             var_expected_type))))
+                             var_name var_value var_expected_type))))
             (cond
              ((and (eq var_value nil)
                    (not (eq var_expected_type 'boolean)))
@@ -355,15 +348,13 @@ validation policy separate from mode activation."
                 (setq result_bool nil)))
              ((eq var_expected_type 'directory)
               (funcall add_to_result_message_short_)
-              (unless (and
-                       (stringp var_value)
-                       (file-directory-p var_value))
+              (unless (and (stringp var_value)
+                           (file-directory-p var_value))
                 (setq result_bool nil)))
              ((eq var_expected_type 'file)
               (funcall add_to_result_message_short_)
-              (unless (and
-                       (stringp var_value)
-                       (file-exists-p var_value))
+              (unless (and (stringp var_value)
+                           (file-exists-p var_value))
                 (setq result_bool nil)))
              ((eq var_expected_type 'boolean)
               (funcall add_to_result_message_short_)
@@ -371,14 +362,15 @@ validation policy separate from mode activation."
                 (setq result_bool nil)))
              ((eq var_expected_type 'integer)
               (funcall add_to_result_message_short_)
-              (unless (and (integerp var_value)
-                           (> var_value 0))
+              (unless (and (integerp var_value) (> var_value 0))
                 (setq result_bool nil)))
              (t
               (funcall add_to_result_message_short_)
               (setq result_bool nil)))))
         (cons result_bool result_message))
-    (cons nil "Inner Constant org-roam-include--variable-type-alist is NOT defined properly. ")))
+    (cons
+     nil
+     "Inner Constant org-roam-include--variable-type-alist is NOT defined properly. ")))
 
 (defun org-roam-include--check-capabilities (alist)
   "Check Org-roam Include runtime capabilities in ALIST.
@@ -394,9 +386,10 @@ report.
 Rationale: Package startup should depend on the interfaces actually available
 in the running Emacs and Org, not only on declared version numbers."
   (if (listp alist)
-      (let ((result_bool t)
-            (result_message
-             "All org-roam-include runtime capabilities are as follow.\n"))
+      (let
+          ((result_bool t)
+           (result_message
+            "All org-roam-include runtime capabilities are as follow.\n"))
         (dolist (pair alist)
           (let* ((capability_name (car pair))
                  (capability_expected_type (cdr pair))
@@ -411,14 +404,18 @@ in the running Emacs and Org, not only on declared version numbers."
             (setq result_message
                   (concat
                    result_message
-                   (format "- %s? %s \n" capability_name capability_exists_p)
+                   (format "- %s? %s \n"
+                           capability_name
+                           capability_exists_p)
                    (format "  %s? %s (should be t)\n"
                            capability_expected_type
                            capability_exists_p)))
             (unless capability_exists_p
               (setq result_bool nil))))
         (cons result_bool result_message))
-    (cons nil "Inner Constant org-roam-include--capability-alist is NOT defined properly. ")))
+    (cons
+     nil
+     "Inner Constant org-roam-include--capability-alist is NOT defined properly. ")))
 
 (defun org-roam-include--setup-check ()
   "Check whether Org-roam Include can be enabled.
@@ -438,14 +435,17 @@ also power the user-facing `org-roam-include-check-setup' command."
          (org-roam-include--check-capabilities
           org-roam-include--capability-alist)))
     (cons
-     (and (car variable_check_result)
-          (car capability_check_result))
+     (and (car variable_check_result) (car capability_check_result))
      (concat
       (format "Variable validation result: %s\n"
-              (if (car variable_check_result) "passed" "failed"))
+              (if (car variable_check_result)
+                  "passed"
+                "failed"))
       (cdr variable_check_result)
       (format "Runtime capability validation result: %s\n"
-              (if (car capability_check_result) "passed" "failed"))
+              (if (car capability_check_result)
+                  "passed"
+                "failed"))
       (cdr capability_check_result)))))
 
 (defun org-roam-include--mount-collect ()
@@ -469,8 +469,7 @@ from edits and makes nested replacement semantics deterministic."
                   (org-entry-get nil org-roam-include--property-name)
                   (not (org-roam-include--mount-ancestor-p)))
          (push (point) mounts)))
-     nil
-     nil)
+     nil nil)
     (sort mounts #'>)))
 
 (defun org-roam-include--mount-ancestor-p ()
@@ -497,9 +496,11 @@ helpers are treated conservatively as not commented.
 
 Rationale: COMMENT subtrees are not exported, so their include declarations
 must remain inert during normalization."
-  (and (not (condition-case nil
-                (org-before-first-heading-p)
-              (error nil)))
+  (and (not
+        (condition-case nil
+            (org-before-first-heading-p)
+          (error
+           nil)))
        (org-in-commented-heading-p)))
 
 (defun org-roam-include--org-subtree-end ()
@@ -523,8 +524,7 @@ provide the preferred metadata boundary helper."
   (when (looking-at-p org-roam-include--property-drawer-begin-regexp)
     (unless (re-search-forward
              org-roam-include--property-drawer-end-regexp
-             bound
-             t)
+             bound t)
       (user-error "Property drawer has no END line"))
     (forward-line 1)))
 
@@ -572,13 +572,14 @@ Implementation notes: Positions come from an Org Element parse tree and prefer
 affiliated syntax.  Reverse order keeps positions stable while editing."
   (let ((ast (org-element-parse-buffer))
         positions)
-    (org-element-map ast 'keyword
-      (lambda (keyword)
-        (when (org-roam-include--keyword-name-p
-               (org-element-property :key keyword))
-          (push (or (org-element-property :post-affiliated keyword)
-                    (org-element-property :begin keyword))
-                positions))))
+    (org-element-map
+     ast 'keyword
+     (lambda (keyword)
+       (when (org-roam-include--keyword-name-p
+              (org-element-property :key keyword))
+         (push (or (org-element-property :post-affiliated keyword)
+                   (org-element-property :begin keyword))
+               positions))))
     (sort positions #'>)))
 
 (defun org-roam-include--outline-first-headline-begin ()
@@ -586,12 +587,12 @@ affiliated syntax.  Reverse order keeps positions stable while editing."
 
 The search respects the current buffer restriction and uses Org Element
 parsing rather than a textual star-prefix search."
-  (org-element-map (org-element-parse-buffer)
-      'headline
-    (lambda (headline)
-      (org-element-property :begin headline))
-    nil
-    t))
+  (org-element-map
+   (org-element-parse-buffer)
+   'headline
+   (lambda (headline) (org-element-property :begin headline))
+   nil
+   t))
 
 (defun org-roam-include--execute-line-search (search)
   "Handle internal Org-roam Include line SEARCH.
@@ -609,15 +610,17 @@ database-point semantics needed for headline nodes.  A private handler lets
 the native INCLUDE expander retain ownership of file loading and subtree
 selection."
   (when (string-match org-roam-include--line-search-regexp search)
-    (let ((line (string-to-number
-                 (match-string-no-properties 1 search))))
+    (let ((line
+           (string-to-number (match-string-no-properties 1 search))))
       (when (< line 1)
         (user-error "Invalid Org-roam include line: %d" line))
       (goto-char (point-min))
       (unless (= (forward-line (1- line)) 0)
-        (user-error "Org-roam include line is outside source file: %d" line))
+        (user-error "Org-roam include line is outside source file: %d"
+                    line))
       (unless (org-at-heading-p)
-        (user-error "Org-roam include line is not at a headline: %d" line))
+        (user-error "Org-roam include line is not at a headline: %d"
+                    line))
       t)))
 
 (defun org-roam-include--node-location-data (node)
@@ -638,17 +641,15 @@ package validates that data but does not rescan files to repair it."
         (node_level (org-roam-node-level node))
         (id (org-roam-node-id node)))
     (unless (and file (file-readable-p file))
-      (user-error "Org-roam include source file is not readable: %s" file))
+      (user-error "Org-roam include source file is not readable: %s"
+                  file))
     (unless (and (integerp node_point)
                  (integerp node_level)
                  (>= node_level 0))
       (user-error
        "Org-roam database contains an invalid location for node ID %s"
        id))
-    (list :file file
-          :point node_point
-          :level node_level
-          :id id)))
+    (list :file file :point node_point :level node_level :id id)))
 
 (defun org-roam-include--source-with-buffer (location thunk)
   "Call THUNK in a temporary Org buffer for LOCATION.
@@ -663,7 +664,8 @@ existing visiting buffer with unsaved changes."
     (with-temp-buffer
       (insert-file-contents file)
       (let ((org-inhibit-startup t))
-        (delay-mode-hooks (org-mode)))
+        (delay-mode-hooks
+          (org-mode)))
       (funcall thunk))))
 
 (defun org-roam-include--node-location (node)
@@ -697,33 +699,33 @@ point preserves database authority and reports stale data explicitly."
            (unless (<= (point-min) point (point-max))
              (user-error
               "Org-roam database position is outside file %s for node ID %s; run org-roam-db-sync"
-              expanded_file
-              id))
-           (append location
-                   (list :type 'file
-                         :location expanded_file))))
+              expanded_file id))
+           (append
+            location (list :type 'file :location expanded_file))))
       (org-roam-include--source-with-buffer
        location
        (lambda ()
          (unless (<= (point-min) point (point-max))
            (user-error
             "Org-roam database position is outside file %s for node ID %s; run org-roam-db-sync"
-            expanded_file
-            id))
+            expanded_file id))
          (goto-char point)
          (unless (org-at-heading-p)
            (user-error
             "Org-roam database position is not at a headline for node ID %s; run org-roam-db-sync"
             id))
-         (let ((line (org-roam-include--include-line-number-at-pos point)))
-           (append location
-                   (list :type 'headline
-                         :line line
-                         :location
-                         (format "%s::%s%d"
-                                 expanded_file
-                                 org-roam-include--line-search-prefix
-                                 line)))))))))
+         (let ((line
+                (org-roam-include--include-line-number-at-pos point)))
+           (append
+            location
+            (list
+             :type 'headline
+             :line line
+             :location
+             (format "%s::%s%d"
+                     expanded_file
+                     org-roam-include--line-search-prefix
+                     line)))))))))
 
 (defun org-roam-include--node-resolve (id)
   "Resolve Org-roam node ID to native INCLUDE resolver data.
@@ -735,8 +737,7 @@ Rationale: Resolution deliberately uses `org-roam-node-from-id' without
 triggering database synchronization or fallback file scans.  Export should
 fail clearly when the user's Org-roam database is stale."
   (when (string-empty-p id)
-    (user-error "%s node ID is empty"
-                org-roam-include--keyword-name))
+    (user-error "%s node ID is empty" org-roam-include--keyword-name))
   (let ((node (org-roam-node-from-id id)))
     (unless node
       (user-error "Cannot find Org-roam node for ID: %s" id))
@@ -764,22 +765,23 @@ both reasonable choices."
     (unless (zerop level)
       (user-error
        "Headline-node mounts are not defined yet for ID %s; use %s explicitly"
-       id
-       (org-roam-include--keyword-prefix)))
+       id (org-roam-include--keyword-prefix)))
     (org-roam-include--source-with-buffer
      location
      (lambda ()
        (unless (<= (point-min) point (point-max))
          (user-error
           "Org-roam database position is outside file %s for node ID %s; run org-roam-db-sync"
-          file
-          id))
+          file id))
        (goto-char (point-min))
        (let ((headline_begin
               (org-roam-include--outline-first-headline-begin)))
          (unless headline_begin
-           (user-error "Org-roam file node has no headline content: %s" id))
-         (org-roam-include--include-line-number-at-pos headline_begin))))))
+           (user-error
+            "Org-roam file node has no headline content: %s"
+            id))
+         (org-roam-include--include-line-number-at-pos
+          headline_begin))))))
 
 (defun org-roam-include--include-quote-location (location)
   "Return LOCATION quoted for use in an Org INCLUDE keyword.
@@ -791,8 +793,7 @@ Rationale: LOCATION is Org source text, not an Elisp string.  Rejecting
 unsupported characters avoids applying an escaping model that Org may
 interpret differently."
   (when (string-match-p
-         org-roam-include--unquotable-location-regexp
-         location)
+         org-roam-include--unquotable-location-regexp location)
     (user-error "Location cannot be represented in an Org INCLUDE: %s"
                 location))
   (format "\"%s\"" location))
@@ -819,11 +820,12 @@ unchanged.  Signal `user-error' when VALUE has no node ID.
 
 Rationale: Only node resolution belongs to Org-roam Include; native argument
 tokenization remains Org's responsibility."
-  (unless (string-match org-roam-include--node-id-and-tail-regexp value)
-    (user-error "%s node ID is empty"
-                org-roam-include--keyword-name))
-  (cons (match-string-no-properties 1 value)
-        (match-string-no-properties 2 value)))
+  (unless (string-match
+           org-roam-include--node-id-and-tail-regexp value)
+    (user-error "%s node ID is empty" org-roam-include--keyword-name))
+  (cons
+   (match-string-no-properties 1 value)
+   (match-string-no-properties 2 value)))
 
 (defun org-roam-include--keyword-parse-line ()
   "Parse the Org-roam include keyword line at point.
@@ -845,11 +847,12 @@ text for replacement."
              (match-string-no-properties 2 line))
       (user-error "Point is not at a %s keyword"
                   (org-roam-include--keyword-prefix)))
-    (list :begin line_begin
-          :end line_end
-          :indentation (match-string-no-properties 1 line)
-          :key (match-string-no-properties 2 line)
-          :value (match-string-no-properties 3 line))))
+    (list
+     :begin line_begin
+     :end line_end
+     :indentation (match-string-no-properties 1 line)
+     :key (match-string-no-properties 2 line)
+     :value (match-string-no-properties 3 line))))
 
 (defun org-roam-include--keyword-compile-at-point ()
   "Compile the Org-roam include keyword at point to native INCLUDE syntax.
@@ -874,8 +877,7 @@ argument semantics, recursion, and cycle detection."
          (resolved (org-roam-include--node-resolve id))
          (native_include
           (org-roam-include--include-format-native
-           (plist-get resolved :location)
-           raw_tail)))
+           (plist-get resolved :location) raw_tail)))
     (delete-region line_begin line_end)
     (goto-char line_begin)
     (insert indentation native_include)))
@@ -889,8 +891,7 @@ surrounding whitespace.  Return the empty string when the property is absent.
 Rationale: Returning a string gives the mount compiler one explicit empty-ID
 error path for missing and blank property values."
   (string-trim
-   (or (org-entry-get (point) org-roam-include--property-name)
-       "")))
+   (or (org-entry-get (point) org-roam-include--property-name) "")))
 
 (defun org-roam-include--keyword-format-base (id raw_tail)
   "Return a base Org-roam include keyword for ID and RAW_TAIL.
@@ -900,10 +901,7 @@ The result has no trailing newline.
 
 Rationale: Mount compilation emits the same public base syntax accepted from
 users, allowing one later keyword compiler to own node resolution."
-  (format "%s %s%s"
-          (org-roam-include--keyword-prefix)
-          id
-          raw_tail))
+  (format "%s %s%s" (org-roam-include--keyword-prefix) id raw_tail))
 
 (defun org-roam-include--mount-replace-body (content)
   "Replace the current headline body and descendants with CONTENT.
@@ -947,16 +945,14 @@ avoids a second native INCLUDE generation path."
                   org-roam-include--property-name
                   (org-get-heading t t t t)))
     (let* ((node (org-roam-node-from-id id))
-           (_ (unless node
-                (user-error
-                 "Cannot find Org-roam node for ID: %s"
-                 id)))
+           (_
+            (unless node
+              (user-error "Cannot find Org-roam node for ID: %s" id)))
            (outline_start_line
             (org-roam-include--outline-start-line node))
            (roam_include
             (org-roam-include--keyword-format-base
-             id
-             (format " :lines \"%d-\"" outline_start_line))))
+             id (format " :lines \"%d-\"" outline_start_line))))
       (org-entry-delete (point) org-roam-include--property-name)
       (org-roam-include--mount-replace-body roam_include))))
 
@@ -1030,8 +1026,7 @@ cycle detection."
                (cons
                 #'org-roam-include--execute-line-search
                 org-execute-file-search-functions))))
-        (save-excursion
-          (org-roam-include-expand-buffer))
+        (save-excursion (org-roam-include-expand-buffer))
         (apply original_function arguments))
     (apply original_function arguments)))
 
@@ -1056,8 +1051,7 @@ mode rather than maintain a parallel compatibility test."
   (interactive)
   (let ((check_result (org-roam-include--setup-check)))
     (message "%s"
-             (if (and (consp check_result)
-                      (car check_result))
+             (if (and (consp check_result) (car check_result))
                  (concat
                   "Org-roam Include setup checks passed.\n"
                   (cdr check_result))
@@ -1117,23 +1111,26 @@ the native expansion boundary lets Org retain its established INCLUDE
 semantics."
   :global t
   :group 'org-roam-include
-  :lighter " ORI"
+  :lighter
+  " ORI"
   (if org-roam-include-mode
       (let ((check_result (org-roam-include--setup-check)))
         (if (car check_result)
             (progn
-              (add-hook 'org-export-before-processing-functions
-                        #'org-roam-include--mark-export-buffer)
-              (unless (advice-member-p
-                       #'org-roam-include--around-expand-include-keyword
-                       'org-export-expand-include-keyword)
+              (add-hook
+               'org-export-before-processing-functions
+               #'org-roam-include--mark-export-buffer)
+              (unless
+                  (advice-member-p
+                   #'org-roam-include--around-expand-include-keyword
+                   'org-export-expand-include-keyword)
                 (advice-add
                  'org-export-expand-include-keyword
-                 :around
-                 #'org-roam-include--around-expand-include-keyword)))
+                 :around #'org-roam-include--around-expand-include-keyword)))
           (setq org-roam-include-mode nil)
-          (remove-hook 'org-export-before-processing-functions
-                       #'org-roam-include--mark-export-buffer)
+          (remove-hook
+           'org-export-before-processing-functions
+           #'org-roam-include--mark-export-buffer)
           (advice-remove
            'org-export-expand-include-keyword
            #'org-roam-include--around-expand-include-keyword)
@@ -1141,8 +1138,9 @@ semantics."
            (concat
             "Org Roam Include Mode setup failed.\n"
             (cdr check_result)))))
-    (remove-hook 'org-export-before-processing-functions
-                 #'org-roam-include--mark-export-buffer)
+    (remove-hook
+     'org-export-before-processing-functions
+     #'org-roam-include--mark-export-buffer)
     (advice-remove
      'org-export-expand-include-keyword
      #'org-roam-include--around-expand-include-keyword)))

@@ -1,12 +1,13 @@
-{ llib, src }:
-{
+{ llib, src }: {
   overlays = llib.packages.mkOverlays {
     root = ./.;
     overlayFile = "overlay.nix";
     extraArgs = { inherit src; };
     groups = {
       default = { };
-      legacy = { export = true; };
+      legacy = {
+        export = true;
+      };
     };
   };
 }

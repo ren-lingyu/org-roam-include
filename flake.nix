@@ -32,7 +32,12 @@
         };
       })
       (
-        { src, llib, lpkgs, ... }:
+        {
+          src,
+          llib,
+          lpkgs,
+          ...
+        }:
         {
           systems = inputs.nixpkgs.lib.systems.flakeExposed;
 
@@ -57,9 +62,7 @@
                 emacs = pkgs.emacs-with-org-roam-include;
               };
 
-              devShells.default = pkgs.mkShell {
-                packages = [ pkgs.emacs-with-org-roam-include ];
-              };
+              devShells.default = pkgs.mkShell { packages = [ pkgs.emacs-with-org-roam-include ]; };
 
               treefmt = {
                 flakeCheck = false;

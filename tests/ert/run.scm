@@ -9,8 +9,8 @@
 (mkdir home-directory)
 
 (unless
-  (zero?
-    (system*
+    (zero?
+     (system*
       "@emacs@"
       "-Q"
       "--batch"
@@ -21,5 +21,5 @@
   (exit 1))
 
 (call-with-output-file
-  (getenv "out")
+    (getenv "out")
   (lambda (port) #t))
