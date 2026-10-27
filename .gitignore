@@ -1,12 +1,19 @@
 *
 */
 
-!/README.org
+!/.github/
+!/.github/**/
+!/.github/**/*.yaml
+
 !/.gitignore
 !/.gitsubmodules
+
 !/LICENSE
-!/flake.nix
+
+!/README.org
+
 !/flake.lock
+!/flake.nix
 
 !/lisp/
 !/lisp/*.el
@@ -14,10 +21,6 @@
 !/pkgs/
 !/pkgs/**/
 !/pkgs/**/*.nix
-
-!/.github/
-!/.github/**/
-!/.github/**/*.yaml
 
 !/tests/
 !/tests/**/
