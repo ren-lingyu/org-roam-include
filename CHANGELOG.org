@@ -7,6 +7,28 @@ Notable user-visible changes, newest first. Version links lead to complete
 release notes. Entries follow Keep a Changelog categories in Org format.
 Version-level =CLOSED= timestamps are recorded in UTC.
 
+* TODO Unreleased
+Changes since v0.1.0.
+
+** Changed
+- *Breaking:* Move the library into =lisp/=. Update manual =load-path=
+  entries and direct =load-file= calls to use that directory. The public
+  entry remains =(require 'org-roam-include)=.
+- Lower the declared minimum Emacs version from 31.0 to 30.1.
+
+** Added
+- A Nix flake with named =org-roam-include= and =emacs= packages for the
+  library and an Emacs wrapper, plus a development shell containing the
+  library and its dependencies. Use =nix build .#org-roam-include= or
+  =nix build .#emacs=; no default package is provided. Packaging uses the
+  personal-nixpkgs framework, Nixpkgs' =melpaBuild= helper and the default
+  Nixpkgs Emacs package set.
+- An exported =overlays.emacsPackages= overlay for downstream Emacs package
+  sets and =legacyPackages.<system>= outputs for the configured package set.
+- A =nix flake check= workflow that builds the package, runs ERT against the
+  built library and real Org-roam dependency, checks the source with
+  package-lint and validates repository formatting with treefmt.
+
 * DONE v0.1.0
 CLOSED: [2026-07-22 Wed 10:26]
 :PROPERTIES:
