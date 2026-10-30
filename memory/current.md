@@ -1,5 +1,78 @@
 # Current project memory
 
+## Completed changelog and README maintenance
+
+The user adopted English Org summaries in `CHANGELOG.org` and standalone
+per-version manuscripts in `CHANGELOGS/`, using the git-maintenance Org profile.
+The user confirms v0.1.0 was the first version and formal release. Its public
+GitHub release is neither draft nor prerelease, and its tag object matches the
+local tag. The platform body contains only a generated Full Changelog link;
+there is no substantive prior manuscript to import. Historical reconstruction
+uses the v0.1.0 source, README and tests, not current HEAD or retrospective
+memory alone. The release declares Emacs 31.0, Org 9.7 and Org-roam 2.0.0, and
+contains no Nix flake. Current Emacs 30.1/Nix changes belong in Unreleased.
+
+Phase one is committed as `docs(changelog): backfill v0.1.0 release history`,
+introducing `CHANGELOG.org` and `CHANGELOGS/v0.1.0.org`.
+The summary covers node includes, outline projection and replacement mounts,
+native recursive export, document boundaries, mode/setup diagnostics and
+resolution errors. The detailed manuscript groups those capabilities with
+requirements and limitations. It distinguishes structural DB-position checks
+from complete stale-identity detection, retains saved-source/native-Org
+boundaries and avoids unnecessary private implementation detail. The root
+uses `DONE v0.1.0`, matching CUSTOM_ID and tagged-commit UTC committer time
+`[2026-07-22 Wed 10:26]`. Its preface declares version-level CLOSED times UTC;
+the user permits natural wording rather than requiring an exact sentence.
+Details have no root backlinks, generic reference section or external source/
+comparison/release navigation. They will be the source of truth for future
+platform release-note preparation; platform writes are outside this task.
+
+Both changelog phases are committed: historical backfill followed by
+`docs(changelog): document unreleased changes since v0.1.0`. The Unreleased
+entry records the lowered declared Emacs minimum (31.0 to 30.1), the breaking
+manual-installation path move into `lisp/`, and newly added Nix packaging,
+development shell, wrapper/overlay/legacy outputs and ERT/lint/treefmt workflow
+with real dependencies. Since v0.1.0 had no Nix output, intermediate unreleased
+default-output changes are not described as a breaking migration from the
+published release. There is no chosen next version, Unreleased detailed file,
+historical state/time change or self-referential changelog addition.
+
+The user authorized README maintenance with separate staging and commit wait
+boundaries, all now completed. README work used committed HEAD
+`ebcf8d3d59f1bc1ceb8be0d377fc074d55e243f4` as its implementation baseline,
+not the release tag. The user committed the README update as
+`docs(readme): clarify setup and normalization boundaries`. The committed diff
+contains only README.org, and the ordinary worktree is clean.
+
+The existing README already described INCLUDE arguments, node resolution,
+replacement mounts, recursive export, native search integration and Nix
+installation/tests. The update preserves those explanations and adds mode
+setup/disable semantics, the diagnostic command's lack of per-document/DB
+validation, and the public normalization helper's destructive current-buffer
+contract. It clarifies keyword case/raw arguments/non-UUID IDs, first-real-
+headline-to-EOF projection and literal-block exclusion, export error propagation,
+and automatic export-copy safety versus explicit direct calls. Historical
+first-version wording now describes current behavior; the repository tree and
+links include the committed changelog and standalone v0.1.0 manuscript.
+The complete resulting README and diff were reviewed against affected HEAD
+source and tracked paths; whitespace checks passed. No runtime or example test
+was executed.
+
+All planned documentation work is complete and user-committed. The completion
+checkpoint is grounded in the final committed documentation review, not a new
+build, test or publication run. No follow-up implementation task remains in
+scope; resume by confirming a new objective and current source state. Project
+staging and commits remain human operations, and requested commit messages
+must describe the staged candidate. The ignore whitelist was committed
+independently. Formatting, ignore, lock-refresh and runner internals remain
+outside the changelog inventory.
+
+Validation so far is static tagged-source/README/test-body and document review.
+Git whitespace checks reported no issues, and ignore-rule inspection confirmed
+both new files are trackable. No build, ERT, formatter, installation, export or
+publication test was run. The repository work before these new documents was
+at `1fd964bedb9083ec783314f060e1b07debbe704b`.
+
 ## Completed framework alignment
 
 The user-approved seven-node alignment is complete and each node was separately
@@ -24,8 +97,9 @@ No live transclusion, database repair or metadata migration was added.
 The flake uses personal-nixpkgs with a lisp-rooted source fileset, package overlays
 and tests.mkChecks. All package, wrapper, development and check environments use
 default pkgs.emacs/pkgs.emacsPackages rather than explicitly selecting Emacs 31.
-The current locked default happens to be Emacs 31.1; future input updates may
-change it. Public package outputs are org-roam-include and emacs, with no default
+Framework-alignment validation observed default Emacs 31.1 at that time;
+subsequent lock refreshes were not evaluated during documentation maintenance.
+Input updates can change the selected version. Public package outputs are org-roam-include and emacs, with no default
 package. The emacsPackages overlay is explicitly grouped and publicly exported.
 llib directly inherits only the framework tests/packages attributes; replacing
 the former single-element recursive merge simplified construction without
@@ -54,10 +128,10 @@ checks for the gate and final wiring passed, reusing the same successful package
 ERT and lint derivations while executing treefmt freshly. The final authorized
 flake check used the working candidate before the user's last commit; that
 committed diff was then inspected and the ordinary worktree confirmed clean.
-The checkpoint's project parent records that exact final source inspection,
+The framework-alignment checkpoint's project parent records that source inspection,
 not a new post-commit test run. Other exposed systems were omitted by Nix.
 
-README validation was static: six balanced Elisp examples, four referenced
+Framework-alignment README validation was static: six balanced Elisp examples, four referenced
 package symbols present at HEAD, a valid LICENSE link and whitespace checks.
 No example evaluation or new live database, backend or compatibility matrix was
 performed. Publication and current CI status remain unverified.
