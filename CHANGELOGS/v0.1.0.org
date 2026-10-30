@@ -1,0 +1,100 @@
+#+title: v0.1.0 Release Notes
+
+* Overview
+The initial release of =org-roam-include= resolves Org-roam node IDs to native
+Org INCLUDE targets during export. Org-roam supplies node identity and saved
+locations; Org retains control of include arguments, file reading and recursive
+expansion. Composition happens in export working copies without changing the
+source Org files.
+
+* Added
+** File and headline includes
+- Use =#+ROAM_INCLUDE: NODE-ID= with optional native INCLUDE arguments:
+
+#+begin_src org
+  ,#+ROAM_INCLUDE: NODE-ID :only-contents t
+#+end_src
+
+- Interpret only the first non-whitespace token as the node ID; no UUID
+  format is required. Preserve the remaining single-line argument text,
+  including its leading whitespace, for Org to interpret. Native =:lines=,
+  =:only-contents=, =:minlevel= and source-block arguments retain their meaning.
+- Resolve file nodes to whole-file include targets. The base wrapper does
+  not automatically strip file properties, document keywords or introductory
+  text.
+- Resolve headline nodes from their recorded positions in saved files.
+  Include the selected headline and subtree according to native Org semantics;
+  use =:only-contents t= when the root headline should be omitted. The package
+  does not add that argument automatically.
+
+** File outlines and replacement mounts
+- Project a file node's outline from its first actual headline through end
+  of file, including the final subtree. Exclude file-level metadata and
+  introductory content before the first headline; a file without headline
+  content is an error rather than an empty or whole-file fallback.
+- Declare a replacement mount with a local headline's =ROAM_INCLUDE=
+  property naming a file node. Keep the local headline and its other
+  properties, remove the controlling property, and replace the local body
+  and child subtrees with the target file's outline in the export copy.
+- Restrict property mounts to file nodes. For a headline node, use an explicit
+  =#+ROAM_INCLUDE= keyword with the desired native arguments instead.
+- Compile replacement mounts before resolving ordinary wrappers. Discarded
+  local bodies and descendants, including their nested mounts and invalid
+  include references, do not participate in the resulting composition.
+
+** Recursive export and document boundaries
+- Expand chains mixing =#+ROAM_INCLUDE= and native =#+INCLUDE=, including
+  file-node mounts inside included files. Delegate recursive expansion and
+  cycle handling to Org rather than defining a separate recursion engine.
+- Preserve native line selection before recursively normalizing the selected
+  region, so excluded wrappers need not resolve successfully.
+- Respect the accessible region for narrowed and subtree exports. Skip
+  COMMENT subtrees and leave literal wrapper text inside source or example
+  blocks unchanged; recognize the wrapper keyword case-insensitively.
+- Leave heading-level adjustment, footnotes and ordinary relative links to
+  native INCLUDE behavior. The headline lookup mechanism is scoped to export
+  expansion rather than installed as a permanent file-search extension.
+
+** Activation and setup diagnostics
+- Enable =org-roam-include-mode= to apply normalization globally during Org
+  export. Ordinary unmarked buffers remain outside the mode's automatic
+  normalization, and disabling the mode removes its export hook and advice.
+- Use =org-roam-include-check-setup= for the package's setup report. Activation
+  checks package variables and required runtime interfaces; failed checks
+  produce a warning and leave the mode disabled.
+- Resolve included content from saved files and Org-roam's recorded locations,
+  not unsaved changes in visiting buffers. Keep database synchronization under
+  user control.
+
+** Resolution errors
+- Report empty IDs, missing nodes, unreadable source files, invalid location
+  data, out-of-bounds database positions and headline positions that do not
+  point to headlines.
+- Report file-outline requests without headline content and property mounts
+  targeting headline nodes. Do not silently replace these requests with a
+  whole-file include or a different projection.
+- Reject generated include locations containing double quotes, newlines or
+  carriage returns, which cannot be represented by the supported Org location
+  quoting.
+
+* Requirements
+- Emacs 31.0 or later
+- Org 9.7 or later
+- Org-roam 2.0.0 or later
+- Readable saved source files and an Org-roam database synchronized by the user
+
+The release's library is =org-roam-include.el= at the repository root. Make it
+available on =load-path=, require =org-roam-include= and enable the global mode
+for export preprocessing.
+
+* Limitations
+- No editing-time preview, live transclusion, overlays or synchronized editing.
+- No headline-node property mounts, inherited mount properties, metadata or
+  ID migration, or attachment-context repair.
+- No automatic database synchronization, ID rescanning, title search or
+  =CUSTOM_ID= fallback. Location validation checks bounds and headline
+  structure; it does not prove that a stale position still identifies the
+  intended node.
+- No file-metadata whitelist, custom INCLUDE-argument parser or general
+  workaround for native Org INCLUDE behavior. Select whole-file content with
+  the base wrapper or the defined file-outline projection through a mount.

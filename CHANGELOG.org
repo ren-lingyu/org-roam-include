@@ -1,0 +1,43 @@
+#+title: Org-roam Include Changelog
+#+todo: TODO NEXT WAIT | DONE CANCELED
+#+startup: logdone
+#+property: TIMEZONE UTC
+
+Notable user-visible changes, newest first. Version links lead to complete
+release notes. Entries follow Keep a Changelog categories in Org format.
+Version-level =CLOSED= timestamps are recorded in UTC.
+
+* DONE v0.1.0
+CLOSED: [2026-07-22 Wed 10:26]
+:PROPERTIES:
+:CUSTOM_ID: v0.1.0
+:END:
+[[file:CHANGELOGS/v0.1.0.org][Detailed release notes]]
+
+Initial release. Requires Emacs 31.0 or later, Org 9.7 or later and Org-roam
+2.0.0 or later.
+
+** Added
+- Resolve =#+ROAM_INCLUDE: NODE-ID= wrappers for file and headline nodes to
+  native Org INCLUDE targets using Org-roam database locations and saved
+  source files. Preserve native arguments such as =:lines=, =:only-contents=
+  and =:minlevel= for Org to interpret.
+- Project a file node's outline from its first real headline through the end
+  of the file, excluding preceding file metadata and introductory content.
+  Report an error when the target file has no headline.
+- Mount file-node outlines through a local headline's =ROAM_INCLUDE=
+  property. Preserve the local headline and other properties while replacing
+  its body and descendants and removing the controlling property in the
+  export copy.
+- Support recursive mixtures of native INCLUDE, Org-roam wrappers and
+  file-node mounts through Org's native expansion. Leave line selection,
+  heading levels, links, footnotes and cycle handling to Org.
+- Respect subtree export, COMMENT subtrees and literal blocks. Discard
+  replaced mount content before resolving wrappers within it.
+- Provide the global =org-roam-include-mode= for export-only normalization
+  and =org-roam-include-check-setup= for setup diagnostics. Failed setup
+  checks warn and leave the mode disabled; disabling removes its export
+  integration without changing source files.
+- Diagnose empty or missing node IDs, unreadable files, structurally invalid
+  database locations and unsupported headline-node property mounts, without
+  automatic database synchronization or fallback identity searches.
