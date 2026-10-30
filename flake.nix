@@ -62,9 +62,7 @@
             treefmt = {
               flakeCheck = true;
               settings.excludes = [
-                ".gitignore"
                 "LICENSE"
-                "README.org"
                 "flake.lock"
               ];
             };
