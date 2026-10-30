@@ -1,5 +1,5 @@
-#+TITLE: Org Roam Include
-#+AUTHOR: aRenCoco
+#+title: Org Roam Include
+#+author: aRenCoco
 
 * Overview
 Org-roam-include is an Emacs package that resolves Org-roam node IDs to Org
@@ -8,10 +8,10 @@ locations, while headline nodes use private file-search locations that are
 understood by this package during native INCLUDE expansion.  Its purpose is
 deliberately small:
 
-#+BEGIN_QUOTE
+#+begin_quote
 Resolve stable Org-roam node IDs to Org =#+INCLUDE= targets, then let Org's
 exporter handle the include semantics.
-#+END_QUOTE
+#+end_quote
 
 The package is not a transclusion system.  It does not provide editing-time
 preview, live overlays, synchronized editing, property migration, or custom
@@ -20,13 +20,13 @@ buffer.
 
 The intended layering is:
 
-#+BEGIN_SRC text
+#+begin_src text
   Org-roam node ID
       -> org-roam.db
       -> native Org INCLUDE location
       -> #+INCLUDE
       -> Org exporter
-#+END_SRC
+#+end_src
 
 Org-roam owns node identity and node positions.  Org-roam-include only converts
 those positions into include targets.  Org owns the later behavior: file
@@ -45,21 +45,21 @@ Org's native include expander are supported.
 * Core Syntax
 The base public syntax is:
 
-#+BEGIN_SRC org
-  #+ROAM_INCLUDE: NODE-ID [native INCLUDE arguments]
-#+END_SRC
+#+begin_src org
+  ,#+ROAM_INCLUDE: NODE-ID [native INCLUDE arguments]
+#+end_src
 
 Examples:
 
-#+BEGIN_SRC org
-  #+ROAM_INCLUDE: 550e8400-e29b-41d4-a716-446655440000
+#+begin_src org
+  ,#+ROAM_INCLUDE: 550e8400-e29b-41d4-a716-446655440000
 
-  #+ROAM_INCLUDE: 550e8400-e29b-41d4-a716-446655440000 :only-contents t
+  ,#+ROAM_INCLUDE: 550e8400-e29b-41d4-a716-446655440000 :only-contents t
 
-  #+ROAM_INCLUDE: 550e8400-e29b-41d4-a716-446655440000 :lines "2-10"
+  ,#+ROAM_INCLUDE: 550e8400-e29b-41d4-a716-446655440000 :lines "2-10"
 
-  #+ROAM_INCLUDE: 550e8400-e29b-41d4-a716-446655440000 src emacs-lisp :lines "1-20"
-#+END_SRC
+  ,#+ROAM_INCLUDE: 550e8400-e29b-41d4-a716-446655440000 src emacs-lisp :lines "1-20"
+#+end_src
 
 Only the first non-whitespace token after =#+ROAM_INCLUDE:= is interpreted by
 this package.  That token is treated as an Org-roam node ID.  The remaining text
@@ -67,11 +67,11 @@ on the line is preserved as raw native =#+INCLUDE= arguments.
 
 The base rule is:
 
-#+BEGIN_SRC text
+#+begin_src text
   ROAM_INCLUDE(ID, RAW-TAIL)
   =
   INCLUDE(resolve(ID), RAW-TAIL)
-#+END_SRC
+#+end_src
 
 The base layer does not parse or validate native include arguments such as
 =:lines=, =:only-contents=, =:minlevel=, =src=, =example=, or =export=.  Their
@@ -80,12 +80,12 @@ meaning belongs to Org.
 * Node Resolution
 Org-roam's database is the authority for node locations.  Node resolution uses:
 
-#+BEGIN_SRC emacs-lisp
+#+begin_src emacs-lisp
   (org-roam-node-from-id id)
   (org-roam-node-file node)
   (org-roam-node-level node)
   (org-roam-node-point node)
-#+END_SRC
+#+end_src
 
 The package does not:
 
@@ -107,15 +107,15 @@ the first-version semantics.
 ** File Nodes
 For a file node:
 
-#+BEGIN_SRC org
-  #+ROAM_INCLUDE: FILE-NODE-ID
-#+END_SRC
+#+begin_src org
+  ,#+ROAM_INCLUDE: FILE-NODE-ID
+#+end_src
 
 compiles to:
 
-#+BEGIN_SRC org
-  #+INCLUDE: "/absolute/path/to/file.org"
-#+END_SRC
+#+begin_src org
+  ,#+INCLUDE: "/absolute/path/to/file.org"
+#+end_src
 
 The base wrapper includes the file location as a native Org include target.  It
 does not automatically remove file property drawers, =#+TITLE=, =#+FILETAGS=,
@@ -128,15 +128,15 @@ include arguments or through a higher-level projection provided by this package.
 For a headline node, the database point is converted to a line number in the
 saved source file:
 
-#+BEGIN_SRC org
-  #+ROAM_INCLUDE: HEADLINE-NODE-ID
-#+END_SRC
+#+begin_src org
+  ,#+ROAM_INCLUDE: HEADLINE-NODE-ID
+#+end_src
 
 compiles to:
 
-#+BEGIN_SRC org
-  #+INCLUDE: "/absolute/path/to/file.org::org-roam-include-line:137"
-#+END_SRC
+#+begin_src org
+  ,#+INCLUDE: "/absolute/path/to/file.org::org-roam-include-line:137"
+#+end_src
 
 The generated location uses a private =org-roam-include-line:= prefix rather
 than a bare line number.  Org does not treat =::137= as a line search in native
@@ -151,9 +151,9 @@ land inside a property drawer rather than on the headline element.
 
 Additional projection choices remain native Org arguments:
 
-#+BEGIN_SRC org
-  #+ROAM_INCLUDE: HEADLINE-NODE-ID :only-contents t
-#+END_SRC
+#+begin_src org
+  ,#+ROAM_INCLUDE: HEADLINE-NODE-ID :only-contents t
+#+end_src
 
 The package does not add =:only-contents= automatically at the base layer.
 
@@ -161,23 +161,23 @@ The package does not add =:only-contents= automatically at the base layer.
 File outline projection is a higher-level convenience for file nodes.  It is
 defined as:
 
-#+BEGIN_QUOTE
+#+begin_quote
 Include the region from the beginning of the first headline through the end of
 the last headline.
-#+END_QUOTE
+#+end_quote
 
 The current implementation compiles this projection by finding the first
 headline line =N= and generating:
 
-#+BEGIN_SRC org
-  #+ROAM_INCLUDE: FILE-NODE-ID :lines "N-"
-#+END_SRC
+#+begin_src org
+  ,#+ROAM_INCLUDE: FILE-NODE-ID :lines "N-"
+#+end_src
 
 The base wrapper then compiles it to:
 
-#+BEGIN_SRC org
-  #+INCLUDE: "/absolute/path/to/file.org" :lines "N-"
-#+END_SRC
+#+begin_src org
+  ,#+INCLUDE: "/absolute/path/to/file.org" :lines "N-"
+#+end_src
 
 This does not include file-level property drawers, file-level keywords, or
 first-section elements before the first headline.  If a file node has no
@@ -191,8 +191,8 @@ headline's subtree reaches the end of the file.
 * Headline Mounts
 The package provides a high-level property syntax for composition documents:
 
-#+BEGIN_SRC org
-  ** Local title
+#+begin_src org
+  ,** Local title
      :PROPERTIES:
      :CUSTOM_ID: local-target
      :ROAM_INCLUDE: FILE-NODE-ID
@@ -200,8 +200,8 @@ The package provides a high-level property syntax for composition documents:
 
   Local body.
 
-  *** Local child
-#+END_SRC
+  ,*** Local child
+#+end_src
 
 This headline is a replacement mount point:
 
@@ -220,11 +220,11 @@ available instead.
 Headline node projections have more than one reasonable meaning.  Users can
 choose native Org semantics explicitly:
 
-#+BEGIN_SRC org
-  #+ROAM_INCLUDE: HEADLINE-NODE-ID
+#+begin_src org
+  ,#+ROAM_INCLUDE: HEADLINE-NODE-ID
 
-  #+ROAM_INCLUDE: HEADLINE-NODE-ID :only-contents t
-#+END_SRC
+  ,#+ROAM_INCLUDE: HEADLINE-NODE-ID :only-contents t
+#+end_src
 
 The current version does not automatically choose between those meanings for
 property mounts.
@@ -243,7 +243,7 @@ before Org parses them:
 This layered design ensures that =#+ROAM_INCLUDE= keywords inside recursively
 included files are also compiled.
 
-#+BEGIN_SRC emacs-lisp
+#+begin_src emacs-lisp
   (defun org-roam-include--mark-export-buffer (_backend)
     (setq org-roam-include--export-buffer-p t))
 
@@ -258,7 +258,7 @@ included files are also compiled.
           (org-roam-include-expand-buffer)
           (apply original_function arguments))
       (apply original_function arguments)))
-#+END_SRC
+#+end_src
 
 ** Stage 1: Mount Compiler
 The mount compiler transforms high-level headline property mounts into base
@@ -282,15 +282,15 @@ It does not directly generate native =#+INCLUDE=.
 ** Stage 2: Keyword Compiler
 The keyword compiler transforms base wrappers:
 
-#+BEGIN_SRC org
-  #+ROAM_INCLUDE: NODE-ID RAW-TAIL
-#+END_SRC
+#+begin_src org
+  ,#+ROAM_INCLUDE: NODE-ID RAW-TAIL
+#+end_src
 
 into native Org includes:
 
-#+BEGIN_SRC org
-  #+INCLUDE: "RESOLVED-LOCATION"RAW-TAIL
-#+END_SRC
+#+begin_src org
+  ,#+INCLUDE: "RESOLVED-LOCATION"RAW-TAIL
+#+end_src
 
 It:
 
@@ -310,11 +310,11 @@ before the keyword compiler sees them.
 * Location Quoting
 Generated native include locations are written into Org quoted strings:
 
-#+BEGIN_SRC org
-  #+INCLUDE: "/absolute/path.org"
+#+begin_src org
+  ,#+INCLUDE: "/absolute/path.org"
 
-  #+INCLUDE: "/absolute/path.org::org-roam-include-line:137"
-#+END_SRC
+  ,#+INCLUDE: "/absolute/path.org::org-roam-include-line:137"
+#+end_src
 
 The current version rejects locations containing:
 
@@ -336,9 +336,9 @@ files are handled by Org.
 
 Supported:
 
-#+BEGIN_SRC text
+#+begin_src text
   ROAM_INCLUDE -> native INCLUDE -> ROAM_INCLUDE -> native INCLUDE -> ...
-#+END_SRC
+#+end_src
 
 The advice carries recursive expansion context through
 =org-roam-include--within-native-expansion= so temporary buffers created by
@@ -416,24 +416,24 @@ points:
 * Installation
 For local use, put =org-roam-include.el= on =load-path=, then require it:
 
-#+BEGIN_SRC emacs-lisp
+#+begin_src emacs-lisp
   (add-to-list 'load-path "/path/to/org-roam-include/lisp")
   (require 'org-roam-include)
-#+END_SRC
+#+end_src
 
 During local development, loading the file directly is also sufficient:
 
-#+BEGIN_SRC emacs-lisp
+#+begin_src emacs-lisp
   (load-file "/path/to/org-roam-include/lisp/org-roam-include.el")
-#+END_SRC
+#+end_src
 
 With Nix, select the library or the Emacs wrapper explicitly; the flake does not
 provide a default package:
 
-#+BEGIN_SRC sh
+#+begin_src sh
   nix build .#org-roam-include
   nix build .#emacs
-#+END_SRC
+#+end_src
 
 The =emacs= wrapper and the development shell include the built library and its
 dependencies.  They use the default =pkgs.emacs= and =pkgs.emacsPackages= from the
@@ -444,22 +444,22 @@ The public Emacs package overlay is exposed as =overlays.emacsPackages=.
 * Configuration
 Enable the global export preprocessor:
 
-#+BEGIN_SRC emacs-lisp
+#+begin_src emacs-lisp
   (org-roam-include-mode 1)
-#+END_SRC
+#+end_src
 
 Use the diagnostic command to inspect the current configuration:
 
-#+BEGIN_SRC emacs-lisp
+#+begin_src emacs-lisp
   (org-roam-include-check-setup)
-#+END_SRC
+#+end_src
 
 * Tests
 Run the complete test suite with:
 
-#+BEGIN_SRC sh
+#+begin_src sh
   nix flake check
-#+END_SRC
+#+end_src
 
 The flake builds the package with compilation warnings treated as errors, runs
 the ERT suite against the built package and its real Org-roam dependency, and
@@ -475,7 +475,7 @@ The ERT suite creates source Org fixtures with Emacs' =make-temp-file=.  During
 =nix flake check=, those files are written to the isolated build environment.
 
 * Repository Structure
-#+BEGIN_SRC text
+#+begin_src text
   .
   ├── flake.nix
   ├── flake.lock
@@ -503,7 +503,7 @@ The ERT suite creates source Org fixtures with Emacs' =make-temp-file=.  During
           ├── test.nix
           ├── test-overlay.nix
           └── run.scm
-#+END_SRC
+#+end_src
 
 * Design Boundary
 Source Org files are not changed by export expansion.  Document composition
