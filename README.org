@@ -62,8 +62,10 @@ Examples:
 #+end_src
 
 Only the first non-whitespace token after =#+ROAM_INCLUDE:= is interpreted by
-this package.  That token is treated as an Org-roam node ID.  The remaining text
-on the line is preserved as raw native =#+INCLUDE= arguments.
+this package.  That token is treated as an Org-roam node ID without requiring
+a UUID format.  The remaining text on the line, including its leading
+whitespace, is preserved as raw native =#+INCLUDE= arguments.  The wrapper
+keyword is recognized case-insensitively.
 
 The base rule is:
 
@@ -102,7 +104,7 @@ Org-roam database synchronized after source changes; export does not repair it.
 
 Source files are interpreted from disk, matching Org's native =#+INCLUDE=
 behavior.  Unsaved changes in already visited source buffers are not part of
-the first-version semantics.
+the included content.
 
 ** File Nodes
 For a file node:
@@ -162,8 +164,8 @@ File outline projection is a higher-level convenience for file nodes.  It is
 defined as:
 
 #+begin_quote
-Include the region from the beginning of the first headline through the end of
-the last headline.
+Include the saved file from its first real headline through end of file,
+including the final headline's complete subtree.
 #+end_quote
 
 The current implementation compiles this projection by finding the first
@@ -184,9 +186,8 @@ first-section elements before the first headline.  If a file node has no
 headline, outline projection fails with a clear error instead of silently
 including the whole file or producing an empty include.
 
-The documented projection is "first headline through last headline".  The
-initial implementation uses Org's normal outline shape, where the final
-headline's subtree reaches the end of the file.
+Headline-like text inside source or example blocks does not count as the
+start of the outline.
 
 * Headline Mounts
 The package provides a high-level property syntax for composition documents:
@@ -274,7 +275,7 @@ It:
 - delete the local mount body and child subtrees;
 - delete only the controlling =ROAM_INCLUDE= property;
 - preserve other local properties;
-- accept only file-node mounts in the first version;
+- accept only file-node mounts;
 - compile file-node mounts to file outline projection.
 
 It does not directly generate native =#+INCLUDE=.
@@ -361,8 +362,14 @@ The current version reports these cases clearly:
 The package does not silently fall back to title search, =CUSTOM_ID= search,
 ID rescanning, whole-file include, or automatic database synchronization.
 
+Resolution and mount errors propagate through native expansion and stop the
+export.  If the database position is invalid, save the source changes and
+synchronize Org-roam before retrying.  Setup diagnostics, described under
+Configuration, check runtime interfaces rather than resolving the document's
+node IDs.
+
 * Non-goals
-The first version does not implement:
+The package does not implement:
 
 - editing-time preview;
 - overlays;
@@ -442,6 +449,7 @@ The package requires Emacs 30.1 or later independently of that Nix selection.
 The public Emacs package overlay is exposed as =overlays.emacsPackages=.
 
 * Configuration
+** Mode and Setup Checks
 Enable the global export preprocessor:
 
 #+begin_src emacs-lisp
@@ -453,6 +461,34 @@ Use the diagnostic command to inspect the current configuration:
 #+begin_src emacs-lisp
   (org-roam-include-check-setup)
 #+end_src
+
+The setup command reports package-variable and runtime-capability checks in
+the echo area.  The package currently exposes no behavior-changing user
+options.  The command does not enable the mode, expand a document, validate
+individual node locations or synchronize the database.
+
+Mode activation runs the same checks.  If they fail, it warns, removes any
+partial hook/advice installation and leaves the mode disabled.  Passing setup
+does not guarantee that a document's include targets will resolve successfully.
+
+To remove the mode's export hook and advice, disable it explicitly:
+
+#+begin_src emacs-lisp
+  (org-roam-include-mode -1)
+#+end_src
+
+** Direct Normalization from Lisp
+=org-roam-include-expand-buffer= normalizes declarations in the accessible
+region of the current Org buffer.  It compiles replacement mounts first,
+then converts the remaining wrappers to native INCLUDE keywords.  It does
+not expand the referenced files, export a document or save any file.
+
+Call it only on an export working copy or another disposable buffer: unlike
+the mode's automatic export integration, a direct call edits the buffer you
+provide.  Replacement mounts delete their original bodies and descendants,
+and an error can leave the buffer partially normalized.  Automatic recursion
+and the scoped headline-search handler are supplied by the mode's integration
+with native INCLUDE expansion.
 
 * Tests
 Run the complete test suite with:
@@ -479,6 +515,9 @@ The ERT suite creates source Org fixtures with Emacs' =make-temp-file=.  During
   .
   ├── flake.nix
   ├── flake.lock
+  ├── CHANGELOG.org
+  ├── CHANGELOGS/
+  │   └── v0.1.0.org
   ├── lisp/
   │   └── org-roam-include.el
   ├── pkgs/
@@ -505,9 +544,14 @@ The ERT suite creates source Org fixtures with Emacs' =make-temp-file=.  During
           └── run.scm
 #+end_src
 
+See [[file:CHANGELOG.org][CHANGELOG.org]] for version summaries and
+[[file:CHANGELOGS/v0.1.0.org][the v0.1.0 release manuscript]] for the initial
+release's capabilities, requirements and limitations.
+
 * Design Boundary
-Source Org files are not changed by export expansion.  Document composition
-happens in Org export temporary buffers.
+The mode's automatic export expansion does not change source Org files.
+Document composition happens in Org export temporary buffers; direct calls to
+the normalization helper instead edit the buffer supplied by the caller.
 
 * LICENSE
 This project is licensed under the [[file:./LICENSE][GNU General Public License v3.0 or later]].
